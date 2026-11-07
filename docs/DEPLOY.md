@@ -1,0 +1,86 @@
+# Deploying the demo (GitHub Pages)
+
+The whole site is static: `index.html`, `styles.css` and `src/`. No build
+step, no server, no database, no API keys. Publishing it is either two git
+commands (Route A) or a drag-and-drop job (Route B) — both end in the same
+two mouse clicks on the Pages setting.
+
+## Route A — push from this Mac (fastest, already prepared)
+
+The folder is already a git repository with one commit on `main`, and this
+Mac's SSH key is already authorised as **FreeFish0904**, so no password or
+token ever has to leave the machine.
+
+1. Open <https://github.com/new>. Name: `freefish-campus-guide`. Visibility:
+   **Public**. Do **not** tick "Add a README". Click **Create repository**.
+2. Tell the agent the repo exists (or run these two lines yourself):
+
+   ```bash
+   cd ~/Desktop/freefish-campus-guide
+   git remote add origin git@github.com:FreeFish0904/freefish-campus-guide.git
+   git push -u origin main
+   ```
+
+3. Turn on Pages — step 3 below (that one is a web click, there is no
+   command-line equivalent without a personal access token).
+
+## Route B — drag and drop in the browser
+
+Use this if you would rather not touch git at all.
+
+### 1. Create the repository
+
+1. Sign in to <https://github.com> (create a free account if needed).
+2. Click **+ → New repository**.
+3. Repository name: `freefish-campus-guide`.
+4. Set it to **Public** (Pages needs public, or a paid plan for private).
+5. **Do not** tick "Add a README" — the folder already has one.
+6. Click **Create repository**.
+
+### 2. Upload the files
+
+1. On the empty repository page click **uploading an existing file**
+   (or **Add file → Upload files**).
+2. Open the `freefish-campus-guide` folder on your computer.
+3. Select **everything inside it** — `index.html`, `styles.css`, `README.md`,
+   and the `src`, `docs` and `tests` folders — and drag it onto the page.
+   The browser keeps the folder structure.
+4. In the commit box type `Add campus guide prototype` and click
+   **Commit changes**.
+5. Wait until the file list appears. `index.html` must be at the **top
+   level** of the repository, not inside another folder. If GitHub created
+   a nested folder, open it, select all, and use **⋯ → Move** to lift the
+   files up a level.
+
+### 3. Turn on Pages
+
+1. In the repository click **Settings** (top bar).
+2. Choose **Pages** in the left sidebar.
+3. Under *Build and deployment* → *Source*, pick **Deploy from a branch**.
+4. Branch: **main**, folder: **/ (root)**. Click **Save**.
+5. Wait about a minute, then reload the page. The link appears at the top:
+   `https://<your-username>.github.io/freefish-campus-guide/`
+
+Click **Visit site**. If you get a 404, wait another minute — the first
+deployment is slow — then hard-refresh the page.
+
+### 4. Check the live site
+
+- The five cards appear above the input box.
+- Typing a query (or tapping a card) draws a route on the floor plan.
+- **Play walkthrough** switches floors by itself.
+- The three language buttons re-translate the route already on screen.
+- `…/index.html?q=hello&lang=zh` opens in Chinese.
+
+### 5. Updating it later
+
+Repeat step 2: **Add file → Upload files**, drag the changed files in, commit.
+Pages redeploys in under a minute.
+
+## Alternatives (if Pages is blocked)
+
+- **Netlify Drop** — <https://app.netlify.com/drop>, drag the folder, get a
+  URL instantly. No account needed for the first 24 hours.
+- **Local** — `python3 -m http.server 8000` inside the project folder, then
+  open <http://localhost:8000>. Opening `index.html` directly from Finder
+  also works, because the app uses plain `<script>` tags (no ES modules).

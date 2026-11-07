@@ -1,0 +1,366 @@
+[
+  {
+    "id": "nlu-en-01",
+    "group": "nlu",
+    "note": "canonical English question, cross-building",
+    "q": "I am at the Library main entrance, how do I get to LT-1?",
+    "expect": { "status": "ok", "intent": "route", "origin": "lib-entrance", "dest": "at-lt1", "lang": "en", "stepFree": null }
+  },
+  {
+    "id": "nlu-en-02",
+    "group": "nlu",
+    "note": "origin marker + question marker",
+    "q": "I am at the Atrium, how do I get to the registry counter?",
+    "expect": { "status": "ok", "origin": "at-atrium", "dest": "at-registry" }
+  },
+  {
+    "id": "nlu-en-03",
+    "group": "nlu",
+    "note": "A to B with no verb at all",
+    "q": "library to lt 1",
+    "expect": { "status": "ok", "origin": "lib-entrance", "dest": "at-lt1" }
+  },
+  {
+    "id": "nlu-en-04",
+    "group": "nlu",
+    "note": "typo correction: libary / entraince",
+    "q": "libary entraince to lt 1 pls",
+    "expect": { "status": "ok", "origin": "lib-entrance", "dest": "at-lt1", "correction": { "from": "libary", "to": "library" } }
+  },
+  {
+    "id": "nlu-en-05",
+    "group": "nlu",
+    "note": "no origin -> must ask instead of guessing",
+    "q": "how do I get to LT-1",
+    "expect": { "status": "need_origin", "dest": "at-lt1" }
+  },
+  {
+    "id": "nlu-en-06",
+    "group": "nlu",
+    "note": "origin only -> must ask for the destination",
+    "q": "I am at the Atrium",
+    "expect": { "status": "need_dest", "origin": "at-atrium" }
+  },
+  {
+    "id": "nlu-en-07",
+    "group": "nlu",
+    "note": "gibberish falls back to help, never a fake route",
+    "q": "asdkjh qwe zzz",
+    "expect": { "status": "help" }
+  },
+  {
+    "id": "nlu-en-08",
+    "group": "nlu",
+    "note": "nearest POI search",
+    "q": "Where is the nearest restroom? I am in the Atrium.",
+    "expect": { "status": "ok", "intent": "nearest", "poi": "restroom", "origin": "at-atrium" }
+  },
+  {
+    "id": "nlu-en-09",
+    "group": "nlu",
+    "note": "step-free request in words",
+    "q": "I am at the Atrium, how do I get to LT-1 with no stairs",
+    "expect": { "status": "ok", "origin": "at-atrium", "dest": "at-lt1", "stepFree": true }
+  },
+  {
+    "id": "nlu-en-10",
+    "group": "nlu",
+    "note": "from ... to ... also works",
+    "q": "take me to lab 402 from the library main entrance",
+    "expect": { "status": "ok", "origin": "lib-entrance", "dest": "ea-lab402" }
+  },
+  {
+    "id": "nlu-en-11",
+    "group": "nlu",
+    "note": "floor is part of the place name here",
+    "q": "from Academic Tower LG1 print centre to the registry counter",
+    "expect": { "status": "ok", "origin": "at-print", "dest": "at-registry" }
+  },
+  {
+    "id": "nlu-en-12",
+    "group": "nlu",
+    "note": "building-only destination resolves to its entrance",
+    "q": "I am at the hub lobby, how do I get to the library",
+    "expect": { "status": "ok", "origin": "hub-lobby", "dest": "lib-entrance" }
+  },
+  {
+    "id": "nlu-zh-01",
+    "group": "nlu",
+    "note": "simplified Chinese, canonical",
+    "q": "我在图书馆正门，怎么去 LT-1？",
+    "expect": { "status": "ok", "origin": "lib-entrance", "dest": "at-lt1", "lang": "zh" }
+  },
+  {
+    "id": "nlu-zh-02",
+    "group": "nlu",
+    "note": "step-free in Chinese",
+    "q": "我在学生活动中心 LG1 的咖啡店，要去工程附楼 7 楼的高级机器人实验室，不想走楼梯",
+    "expect": { "status": "ok", "origin": "hub-coffee", "dest": "ea-robot", "stepFree": true }
+  },
+  {
+    "id": "nlu-zh-03",
+    "group": "nlu",
+    "note": "nearest restroom, short form of the Atrium",
+    "q": "最近的洗手间在哪里？我在中庭",
+    "expect": { "status": "ok", "intent": "nearest", "poi": "restroom", "origin": "at-atrium" }
+  },
+  {
+    "id": "nlu-zh-04",
+    "group": "nlu",
+    "note": "library -> atrium, question suffix",
+    "q": "图书馆怎么去中庭大堂",
+    "expect": { "status": "ok", "origin": "lib-entrance", "dest": "at-atrium" }
+  },
+  {
+    "id": "nlu-zh-05",
+    "group": "nlu",
+    "note": "only a destination -> ask for the origin",
+    "q": "我要去图书馆",
+    "expect": { "status": "need_origin", "dest": "lib-entrance" }
+  },
+  {
+    "id": "nlu-zh-06",
+    "group": "nlu",
+    "note": "residence -> sports centre changing rooms",
+    "q": "我在宿舍大堂，想去体育馆更衣室",
+    "expect": { "status": "ok", "origin": "res-lobby", "dest": "spt-change" }
+  },
+  {
+    "id": "nlu-yue-01",
+    "group": "nlu",
+    "note": "traditional characters + 點去",
+    "q": "我喺圖書館正門，點去 LT-1？",
+    "expect": { "status": "ok", "origin": "lib-entrance", "dest": "at-lt1", "lang": "yue" }
+  },
+  {
+    "id": "nlu-yue-02",
+    "group": "nlu",
+    "note": "fastest request turns step-free off for this query",
+    "q": "圖書館去 Lab 402 最快點行？",
+    "expect": { "status": "ok", "origin": "lib-entrance", "dest": "ea-lab402", "fastest": true, "stepFree": false }
+  },
+  {
+    "id": "nlu-yue-03",
+    "group": "nlu",
+    "note": "nearest toilet in Cantonese",
+    "q": "最近嘅洗手間喺邊？我喺中庭大堂",
+    "expect": { "status": "ok", "intent": "nearest", "poi": "restroom", "origin": "at-atrium" }
+  },
+  {
+    "id": "nlu-yue-04",
+    "group": "nlu",
+    "note": "唔想行樓梯 -> step-free",
+    "q": "由圖書館去 Lab 401，唔想行樓梯",
+    "expect": { "status": "ok", "origin": "lib-entrance", "dest": "ea-lab401", "stepFree": true }
+  },
+  {
+    "id": "nlu-yue-05",
+    "group": "nlu",
+    "note": "destination only, Cantonese",
+    "q": "點去體育館？",
+    "expect": { "status": "need_origin", "dest": "spt-gym" }
+  },
+  {
+    "id": "nlu-yue-06",
+    "group": "nlu",
+    "note": "hall -> library",
+    "q": "我喺宿舍大堂，想去圖書館",
+    "expect": { "status": "ok", "origin": "res-lobby", "dest": "lib-entrance" }
+  },
+
+  {
+    "id": "route-01",
+    "group": "route",
+    "note": "step-free Library -> LT-1: two lifts + skybridge",
+    "q": "I am at the Library main entrance, how do I get to LT-1?",
+    "opts": { "stepFree": true },
+    "expect": {
+      "dest": "at-lt1", "timeMin": 190, "timeMax": 270,
+      "lifts": ["L3", "L2"], "noStairs": true, "stepsMin": 5, "stepsMax": 9,
+      "floors": ["G", "2F", "3F"], "landmark": "lib-journals",
+      "altFasterThan": 20
+    }
+  },
+  {
+    "id": "route-02",
+    "group": "route",
+    "note": "same trip, fastest: stairs instead of lifts",
+    "q": "I am at the Library main entrance, how do I get to LT-1?",
+    "opts": { "stepFree": false },
+    "expect": { "dest": "at-lt1", "hasStairs": true, "timeMax": 200 }
+  },
+  {
+    "id": "route-03",
+    "group": "route",
+    "note": "Hub LG1 -> Annex 7F without stairs: three lifts, one walkway",
+    "q": "我在学生活动中心 LG1 的咖啡店，要去工程附楼 7 楼的高级机器人实验室，不想走楼梯",
+    "opts": { "stepFree": true },
+    "expect": {
+      "dest": "ea-robot", "lifts": ["L5", "L2", "L4"], "noStairs": true,
+      "floors": ["LG1", "G", "3F", "7F"], "stepsMin": 8, "stepsMax": 12,
+      "timeMin": 300, "timeMax": 420
+    }
+  },
+  {
+    "id": "route-04",
+    "group": "route",
+    "note": "Library -> Lab 402, step-free keeps Lift 4 as the Annex route",
+    "q": "圖書館去 Lab 402 最快點行？",
+    "opts": { "stepFree": true },
+    "expect": { "dest": "ea-lab402", "lifts": ["L3", "L2", "L4"], "noStairs": true, "floors": ["2F", "3F", "4F"] }
+  },
+  {
+    "id": "route-05",
+    "group": "route",
+    "note": "Hall -> Library has no ground-level link, so it goes up to 2F",
+    "q": "我喺宿舍大堂，想去圖書館",
+    "opts": { "stepFree": true },
+    "expect": { "dest": "lib-entrance", "liftCount": 2, "noStairs": true, "floors": ["G", "2F"] }
+  },
+  {
+    "id": "route-06",
+    "group": "route",
+    "note": "Lift 2 skips LG1, so the only step-free lift is Lift 1",
+    "q": "from Academic Tower LG1 print centre to the registry counter",
+    "opts": { "stepFree": true },
+    "expect": { "origin": "at-print", "lifts": ["L1"], "noStairs": true, "stepsMax": 4 }
+  },
+  {
+    "id": "route-07",
+    "group": "route",
+    "note": "one floor inside the Academic Tower picks the express lift",
+    "q": "I am at LT-1, how do I get to LT-2?",
+    "opts": { "stepFree": true },
+    "expect": { "dest": "at-lt2", "lifts": ["L2"], "noStairs": true }
+  },
+  {
+    "id": "route-08",
+    "group": "route",
+    "note": "Hub G -> Sports Centre changing rooms crosses at 1F",
+    "q": "我在宿舍大堂，想去体育馆更衣室",
+    "opts": { "stepFree": true },
+    "expect": { "dest": "spt-change", "liftCount": 1, "noStairs": true, "floors": ["1F"] }
+  },
+  {
+    "id": "route-09",
+    "group": "route",
+    "note": "fastest beats the slow all-stops Lift 1 on a single floor",
+    "q": "from Academic Tower LG1 print centre to the registry counter",
+    "opts": { "stepFree": false },
+    "expect": { "hasStairs": true, "timeMax": 60 }
+  },
+  {
+    "id": "route-10",
+    "group": "route",
+    "note": "English step text names the skybridge",
+    "q": "I am at the Library main entrance, how do I get to LT-1?",
+    "opts": { "stepFree": true },
+    "expect": { "textHas": { "lang": "en", "text": "skybridge" } }
+  },
+  {
+    "id": "route-11",
+    "group": "route",
+    "note": "Chinese step text names the covered walkway",
+    "q": "我在中庭，怎么去工程附楼的 Lab 402",
+    "opts": { "stepFree": true },
+    "expect": { "textHas": { "lang": "zh", "text": "连廊" } }
+  },
+  {
+    "id": "route-12",
+    "group": "route",
+    "note": "Cantonese step text names the lift number",
+    "q": "我喺圖書館正門，點去 LT-1？",
+    "opts": { "stepFree": true },
+    "expect": { "textHas": { "lang": "yue", "text": "3號𨋢" } }
+  },
+
+  {
+    "id": "nearest-01",
+    "group": "nearest",
+    "note": "closest restroom to the Atrium",
+    "q": "Where is the nearest restroom? I am in the Atrium.",
+    "opts": { "stepFree": true },
+    "expect": { "nearestIs": "at-wc-g", "noStairs": true }
+  },
+  {
+    "id": "nearest-02",
+    "group": "nearest",
+    "note": "closest restroom to the Library entrance",
+    "q": "nearest toilet from the library main entrance",
+    "opts": { "stepFree": true },
+    "expect": { "nearestIs": "lib-wc-g", "noStairs": true }
+  },
+  {
+    "id": "nearest-03",
+    "group": "nearest",
+    "note": "closest study space to the Hub lobby is one floor up",
+    "q": "nearest study room from the hub lobby",
+    "opts": { "stepFree": true },
+    "expect": { "nearestIs": "hub-lounge", "liftCount": 1 }
+  },
+  {
+    "id": "nearest-04",
+    "group": "nearest",
+    "note": "closest restroom to the gym is inside the Sports Centre",
+    "q": "nearest restroom from the gym entrance",
+    "opts": { "stepFree": true },
+    "expect": { "nearestIs": "spt-wc" }
+  },
+
+  {
+    "id": "i18n-01",
+    "group": "i18n",
+    "note": "every UI string exists in EN / Chinese / Cantonese",
+    "expect": { "allKeysTranslated": true }
+  },
+  {
+    "id": "i18n-02",
+    "group": "i18n",
+    "note": "floor labels per language",
+    "expect": { "floorName": { "f": "2F", "lang": "zh", "expect": "2 楼" } }
+  },
+  {
+    "id": "i18n-03",
+    "group": "i18n",
+    "note": "duration formatting",
+    "expect": { "duration": { "sec": 95, "lang": "en", "expect": "1 min 35 s" } }
+  },
+  {
+    "id": "i18n-04",
+    "group": "i18n",
+    "note": "the same route renders differently in all three languages",
+    "q": "I am at the Library main entrance, how do I get to LT-1?",
+    "expect": { "stepTextDiffers": true }
+  },
+
+  {
+    "id": "data-01",
+    "group": "data",
+    "note": "Lift 2 must not serve LG1",
+    "expect": { "liftServes": { "core": "L2", "floor": "LG1", "expect": false } }
+  },
+  {
+    "id": "data-02",
+    "group": "data",
+    "note": "Lift 1 is the LG1 lifeline",
+    "expect": { "liftServes": { "core": "L1", "floor": "LG1", "expect": true } }
+  },
+  {
+    "id": "data-03",
+    "group": "data",
+    "note": "every POI is named in all three languages",
+    "expect": { "everyRoomNamed": true }
+  },
+  {
+    "id": "data-04",
+    "group": "data",
+    "note": "every building has a lift",
+    "expect": { "everyBuildingLift": true }
+  },
+  {
+    "id": "data-05",
+    "group": "data",
+    "note": "graph size sanity",
+    "expect": { "nodeCount": 200 }
+  }
+]

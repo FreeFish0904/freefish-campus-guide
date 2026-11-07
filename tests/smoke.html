@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Campus Guide — UI smoke test</title>
+<style>
+  body { margin: 0; font: 13px/1.5 -apple-system, "Segoe UI", sans-serif; background: #f4f6fa; color: #0f172a; }
+  .wrap { display: flex; gap: 20px; padding: 16px; align-items: flex-start; }
+  iframe { width: 390px; height: 844px; border: 1px solid #cbd5e1; border-radius: 12px; background: #fff; flex: none; }
+  pre { background: #fff; border: 1px solid #e4e9f0; border-radius: 12px; padding: 14px; margin: 0; white-space: pre-wrap; }
+  h1 { font-size: 15px; margin: 0 0 8px; }
+  .hint { color: #64748b; margin: 0 0 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <iframe id="f" src="../index.html?lang=en" title="app under test"></iframe>
+  <div style="max-width:520px">
+    <h1>UI smoke test</h1>
+    <p class="hint">Drives the real interface inside the frame: five scenario cards,
+      three languages, a step click, a floor tab, the walkthrough player, the
+      step-free switch, a question with no origin, and gibberish.</p>
+    <pre id="RESULT">running…</pre>
+  </div>
+</div>
+<script>
+  var errors = [], log = [], pass = 0, fail = 0;
+  var f = document.getElementById('f');
+
+  function step(name, fn) {
+    try { fn(); pass++; log.push('ok   ' + name); }
+    catch (e) { fail++; log.push('FAIL ' + name + ' — ' + e.message); }
+  }
+
+  function done() {
+    document.getElementById('RESULT').textContent =
+      pass + ' passed, ' + fail + ' failed, ' + errors.length + ' script error(s)\n' +
+      (errors.length ? 'errors: ' + JSON.stringify(errors) + '\n' : '') +
+      '─────────────────────────────\n' + log.join('\n');
+  }
+
+  f.addEventListener('load', function () {
+    var doc = f.contentDocument, win = f.contentWindow;
+    win.onerror = function (m, s, l) { errors.push(m + ' @' + l); };
+    doc.addEventListener('error', function (e) { errors.push(String(e.message)); }, true);
+
+    setTimeout(function () {
+      var chips = doc.querySelectorAll('.chip');
+
+      step('five scenario cards render', function () {
+        if (chips.length !== 5) { throw new Error('found ' + chips.length); }
+      });
+
+      chips.forEach(function (c, i) {
+        step('scenario ' + (i + 1) + ' produces a route', function () {
+          c.click();
+          var cards = doc.querySelectorAll('.card');
+          if (!cards.length) { throw new Error('no card'); }
+          if (!cards[cards.length - 1].querySelectorAll('.step').length) { throw new Error('no steps'); }
+        });
+      });
+
+      step('floor plan has a route polyline', function () {
+        if (!doc.querySelectorAll('.route').length) { throw new Error('no polyline'); }
+      });
+
+      ['zh', 'yue', 'en'].forEach(function (lang) {
+        step('switch language to ' + lang, function () {
+          doc.querySelector('#langSwitch button[data-lang="' + lang + '"]').click();
+          if (!doc.querySelector('.card-title').textContent) { throw new Error('title empty'); }
+        });
+      });
+
+      step('clicking a step highlights it', function () {
+        var li = doc.querySelectorAll('.step')[2];
+        li.click();
+        if (!li.classList.contains('active')) { throw new Error('not highlighted'); }
+      });
+
+      step('floor tab switches the plan', function () {
+        var tabs = doc.querySelectorAll('.floor');
+        tabs[tabs.length - 1].click();
+        /* the tab strip is rebuilt on every render, so re-query */
+        var fresh = doc.querySelectorAll('.floor');
+        if (!fresh[fresh.length - 1].classList.contains('active')) { throw new Error('tab not active'); }
+      });
+
+      step('walkthrough player starts', function () {
+        doc.getElementById('playBtn').click();
+        if (!doc.getElementById('playBtn').classList.contains('playing')) { throw new Error('player did not start'); }
+        doc.getElementById('playBtn').click();
+      });
+
+      step('step-free switch rebuilds the route', function () {
+        var t = doc.getElementById('stepFreeToggle');
+        t.checked = !t.checked;
+        t.dispatchEvent(new win.Event('change'));
+      });
+
+      step('missing origin asks a question', function () {
+        doc.getElementById('askInput').value = 'how do I get to LT-1';
+        doc.getElementById('askForm').dispatchEvent(new win.Event('submit'));
+        if (!doc.querySelector('.mini')) { throw new Error('no suggestion chips'); }
+      });
+
+      step('answering the origin chip completes the route', function () {
+        var before = doc.querySelectorAll('.card').length;
+        doc.querySelector('.mini').click();
+        if (doc.querySelectorAll('.card').length !== before + 1) { throw new Error('no new card'); }
+        var title = doc.querySelectorAll('.card-title');
+        if (title[title.length - 1].textContent.indexOf('LT-1') < 0) { throw new Error('wrong destination'); }
+      });
+
+      step('gibberish is handled, not crashed', function () {
+        doc.getElementById('askInput').value = 'zzz qqq';
+        doc.getElementById('askForm').dispatchEvent(new win.Event('submit'));
+      });
+
+      setTimeout(done, 400);
+    }, 700);
+  }, false);
+</script>
+</body>
+</html>

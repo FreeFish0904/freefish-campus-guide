@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>phone preview</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #dfe5ee; }
+  .frame {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 390px;
+    height: 844px;
+    border: 0;
+    display: block;
+    background: #fff;
+  }
+</style>
+</head>
+<body>
+<iframe class="frame" src="../index.html?lang=en" title="phone preview"></iframe>
+<script>
+  // forward the query string to the app inside the frame
+  var q = window.location.search || '';
+  var f = document.querySelector('.frame');
+  if (q) { f.src = '../index.html' + q; }
+</script>
+</body>
+</html>

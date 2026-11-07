@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freefish Campus Guide · AISC1000A Group 16</title>
+<meta name="description" content="Indoor campus wayfinding prototype: ask for a destination, get step-by-step directions with lifts and floor plans.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">◇</div>
+    <div class="brand-text">
+      <h1 data-i18n="app.title">Campus Guide</h1>
+      <p class="uni" data-i18n="app.university">Freefish University of Science and Technology</p>
+    </div>
+    <span class="badge" data-i18n="app.demo">DEMO DATA · fictional campus</span>
+  </div>
+
+  <div class="controls">
+    <div class="segmented" id="langSwitch" role="group" aria-label="Language">
+      <button type="button" data-lang="en" class="active">EN</button>
+      <button type="button" data-lang="zh">中文</button>
+      <button type="button" data-lang="yue">粵語</button>
+    </div>
+    <label class="switch" for="stepFreeToggle">
+      <input type="checkbox" id="stepFreeToggle" checked>
+      <span class="switch-track" aria-hidden="true"><span class="switch-dot"></span></span>
+      <span class="switch-label" data-i18n="opt.stepFree">Step-free</span>
+    </label>
+  </div>
+</header>
+
+<main class="layout">
+
+  <section class="scenarios">
+    <div class="sec-head">
+      <h2 data-i18n="cards.title">Try one of these first</h2>
+      <p class="hint" data-i18n="cards.hint"></p>
+    </div>
+    <div class="chips" id="scenarioChips"></div>
+  </section>
+
+  <section class="thread" id="thread" aria-live="polite"></section>
+
+  <form class="ask" id="askForm" autocomplete="off">
+    <input id="askInput" type="text" data-i18n-ph="chat.placeholder" aria-label="Ask the guide">
+    <button type="submit" id="askBtn" data-i18n="chat.send">Go</button>
+  </form>
+
+  <section class="mapwrap">
+    <div class="map-head">
+      <h2 data-i18n="map.title">Floor plan</h2>
+      <div class="floor-tabs" id="floorTabs" role="group" aria-label="Floor"></div>
+    </div>
+    <div class="map-canvas">
+      <svg id="map" viewBox="0 0 1000 660" preserveAspectRatio="xMidYMid meet"
+           role="img" aria-label="Campus floor plan"></svg>
+    </div>
+    <div class="map-foot">
+      <button type="button" id="playBtn" class="ghost" data-i18n="map.play">Play walkthrough</button>
+      <span id="playStatus" class="play-status" aria-live="polite"></span>
+      <span class="legend" data-i18n="map.legend"></span>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <span class="foot-group" data-i18n="footer.group">Group 16 · AISC1000A (LA12)</span>
+  <span class="foot-sep" aria-hidden="true">·</span>
+  <span class="foot-note" data-i18n="footer.note"></span>
+</footer>
+
+<script src="src/data/campus.js"></script>
+<script src="src/i18n.js"></script>
+<script src="src/router.js"></script>
+<script src="src/steps.js"></script>
+<script src="src/nlu.js"></script>
+<script src="src/data/scenarios.js"></script>
+<script src="src/map.js"></script>
+<script src="src/app.js"></script>
+</body>
+</html>
