@@ -82,6 +82,21 @@ deployment is slow — then hard-refresh the page.
 Repeat step 2: **Add file → Upload files**, drag the changed files in, commit.
 Pages redeploys in under a minute.
 
+## When the live link answers 404
+
+GitHub Pages shows two different 404 pages, and they mean different things:
+
+| Page title | What it means | What to do |
+|---|---|---|
+| *Site not found* | There is no Pages site at that address at all - usually the project name is missing from the URL (`https://freefish0904.github.io/` instead of `.../freefish-campus-guide/`) | open `https://freefish0904.github.io/freefish-campus-guide/` |
+| *Page not found - The site configured at this address does not contain the requested file* | The site **is** published, but that path has no file: a typo (`index.htm`), different capitalisation (`Freefish-Campus-Guide`, `Index.html`), a doubled project name, or a link copied while a deploy was still running | `404.html` in the repository root catches these and forwards to the app after a second, keeping `?q=` and `#` |
+
+So a 404 for the app itself is almost never a broken deployment: check the
+address bar first. `curl -s -o /dev/null -w '%{http_code}' <URL>` returning `200`
+means the deployment is fine and the path was wrong. Pages also serves the
+**previous** deploy while a new one builds, so a file added 20 seconds ago can
+still 404 for a minute - reload, do not re-upload.
+
 ## Alternatives (if Pages is blocked)
 
 - **Netlify Drop** — <https://app.netlify.com/drop>, drag the folder, get a

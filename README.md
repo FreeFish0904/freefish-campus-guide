@@ -102,7 +102,7 @@ More detail in [`docs/SAMPLE_QUERIES.md`](docs/SAMPLE_QUERIES.md).
 ## How it is put together
 
 ```
-index.html              one page, twelve <script> tags
+index.html              one page, fourteen <script> tags
 styles.css              all styling, including the SVG floor plan
 src/data/graph.js       buildCampus(spec): spec -> nodes, edges, lookups
 src/data/campus.js      the fictional demo campus (spec + build)
@@ -118,6 +118,7 @@ src/steps.js            path -> walk / lift / stairs segments with landmarks
 src/map.js              SVG floor plans + walkthrough player
 src/app.js              state, chat thread, wiring
 src/tasks.js            the checklist drawer: ticks, progress, Go
+404.html                GitHub Pages fallback: a wrong path sends you to the app
 tests/                  graph + data checkers, 49-case suite, browser checks
 docs/                   test log, sample queries, deploy guide, screenshots
 ```

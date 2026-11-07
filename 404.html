@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>没有这个页面 · Freefish Campus Guide</title>
+<!--
+  GitHub Pages serves this file for any path it cannot find. The requested URL
+  stays in the address bar, so relative links inside this page would resolve
+  against the wrong folder - the script below works out the site root (the
+  first path segment, e.g. /freefish-campus-guide/) and sends the visitor to
+  the app, keeping the query string so a mistyped deep link still works.
+-->
+<style>
+  :root {
+    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC",
+               "PingFang SC", "Hiragino Sans", "Microsoft YaHei", Roboto, sans-serif;
+    --ink: #0f172a; --ink-2: #334155; --muted: #64748b;
+    --line: #e4e9f0; --accent: #0f766e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    background: #f4f6fa; color: var(--ink);
+    font-family: var(--font-ui); line-height: 1.65;
+  }
+  main {
+    width: 100%; max-width: 520px;
+    background: #fff; border: 1px solid var(--line); border-radius: 16px;
+    padding: 28px 28px 24px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .05), 0 10px 30px rgba(15, 23, 42, .06);
+  }
+  .code { font-size: 12px; font-weight: 700; letter-spacing: .12em; color: var(--accent); }
+  h1 { font-size: 20px; margin: 6px 0 10px; }
+  p { margin: 0 0 12px; font-size: 14px; color: var(--ink-2); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px;
+       background: #f1f5f9; border-radius: 5px; padding: 1px 5px; overflow-wrap: anywhere; }
+#here { word-break: break-all; }
+  .go {
+    display: inline-block; margin: 4px 0 14px;
+    padding: 9px 16px; border-radius: 10px;
+    background: var(--accent); color: #fff;
+    font-size: 13.5px; font-weight: 600; text-decoration: none;
+  }
+  .go:hover { background: #0b5d56; }
+  .hint { font-size: 12.5px; color: var(--muted); margin: 0; padding-top: 14px;
+          border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<main>
+  <p class="code">404</p>
+  <h1>这个地址下没有文件 / No file at this address</h1>
+  <p>你打开的是 <code id="here">…</code>，但本站在这个路径上只有应用首页。</p>
+  <a class="go" id="go" href="/">回到地图 / Back to the app</a>
+  <p class="hint">
+    首页地址应形如 <code>…/freefish-campus-guide/</code>：注意项目名后面要带斜杠，
+    <code>index.htm</code>、大小写不同、少写项目名，都会落到这个页面。
+    一秒后自动跳转。<br>
+    The address should end in <code>/freefish-campus-guide/</code>.
+  </p>
+</main>
+<script>
+(function () {
+  var segs = location.pathname.split('/').filter(Boolean);
+  var first = segs[0] || '';
+  /* a project site lives at /<repo>/; if the first segment is a file name the
+     page was opened directly, so the site root is the origin */
+  var root = first && first.indexOf('.') < 0 ? '/' + first + '/' : '/';
+  var target = root + location.search + location.hash;
+  var shown = location.pathname + location.search;
+  document.getElementById('here').textContent = shown;
+  document.getElementById('go').href = target;
+  setTimeout(function () { location.replace(target); }, 1000);
+})();
+</script>
+</body>
+</html>
