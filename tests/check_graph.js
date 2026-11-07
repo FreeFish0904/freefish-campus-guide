@@ -6,13 +6,13 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
-const { checkCampus } = require('./check_campus');
+const { checkCampus, checkTasks } = require('./check_campus');
 
 const root = path.join(__dirname, '..');
 const sandbox = {};
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
-['src/data/graph.js', 'src/data/campus.js', 'src/data/campus.ust.js'].forEach(f => {
+['src/data/graph.js', 'src/data/campus.js', 'src/data/campus.ust.js', 'src/data/tasks.js'].forEach(f => {
   vm.runInContext(fs.readFileSync(path.join(root, f), 'utf8'), sandbox, { filename: f });
 });
 
@@ -44,6 +44,22 @@ CAMPUSES.forEach(([label, C]) => {
     console.log('OK - all checks passed');
   }
 });
+
+/* the checklist names places on the HKUST map, so it is checked against
+   that campus - a task pointing at a room that does not exist would give
+   the user a "Go" button that goes nowhere */
+if (sandbox.FUST.Tasks) {
+  const T = sandbox.FUST.Tasks;
+  console.log('\n== newcomer checklist');
+  console.log('tasks=' + T.items.length + '  groups=' + T.groups.length + '  tips=' + T.tips.length);
+  const tr = checkTasks(T, sandbox.FUST.CampusUST);
+  if (tr.problems.length) {
+    fails += tr.problems.length;
+    tr.problems.slice(0, 25).forEach(p => console.log('  FAIL ' + p));
+  } else {
+    console.log('OK - all checks passed');
+  }
+}
 
 console.log(fails === 0 ? '\nDATA OK - both campuses pass' : '\n' + fails + ' CHECK(S) FAILED');
 process.exit(fails === 0 ? 0 : 1);

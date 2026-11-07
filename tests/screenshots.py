@@ -60,6 +60,16 @@ SHOTS = [
         },
     },
     {
+        'file': 'desktop-tasks.png',
+        'size': (1440, 900),
+        'query': {
+            'q': '',
+            'lang': 'en',
+            'data': 'ust',
+            'tasks': '1',
+        },
+    },
+    {
         'file': 'mobile-390.png',
         'size': (500, 880),
         'page': 'tests/phone.html',

@@ -11,7 +11,9 @@
 
 <header class="topbar">
   <div class="brand">
-    <div class="logo" aria-hidden="true">◇</div>
+    <div class="logo" aria-hidden="true">
+      <svg class="ico" viewBox="0 0 24 24" width="19" height="19"><path d="M12 3.5 20.5 12 12 20.5 3.5 12z"/></svg>
+    </div>
     <div class="brand-text">
       <h1 data-i18n="app.title">Campus Guide</h1>
       <p class="uni" data-i18n="app.university">Freefish University of Science and Technology</p>
@@ -20,6 +22,11 @@
   </div>
 
   <div class="controls">
+    <button type="button" id="taskOpen" class="task-open" aria-expanded="false" aria-controls="taskPanel">
+      <svg class="ico" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M4 7h16 M4 12h16 M4 17h10"/></svg>
+      <span data-i18n="tasks.open">Checklist</span>
+      <b id="taskTabCount">0/22</b>
+    </button>
     <div class="segmented" id="langSwitch" role="group" aria-label="Language">
       <button type="button" data-lang="en" class="active">EN</button>
       <button type="button" data-lang="zh">中文</button>
@@ -55,9 +62,9 @@
       <h2 data-i18n="map.title">Floor plan</h2>
       <div class="floor-tabs" id="floorTabs" role="group" aria-label="Floor"></div>
       <div class="map-tools" role="group" aria-label="Zoom">
-        <button type="button" id="zoomOut" class="tool" aria-label="Zoom out">−</button>
-        <button type="button" id="zoomIn" class="tool" aria-label="Zoom in">+</button>
-        <button type="button" id="zoomFit" class="tool" aria-label="Fit to campus">⤢</button>
+        <button type="button" id="zoomOut" class="tool" aria-label="Zoom out"><svg class="ico" viewBox="0 0 24 24" width="15" height="15"><path d="M6 12h12"/></svg></button>
+        <button type="button" id="zoomIn" class="tool" aria-label="Zoom in"><svg class="ico" viewBox="0 0 24 24" width="15" height="15"><path d="M12 6v12 M6 12h12"/></svg></button>
+        <button type="button" id="zoomFit" class="tool" aria-label="Fit to campus"><svg class="ico" viewBox="0 0 24 24" width="15" height="15"><path d="M9 4H4v5 M15 4h5v5 M15 20h5v-5 M9 20H4v-5"/></svg></button>
       </div>
     </div>
     <div class="map-canvas">
@@ -75,6 +82,29 @@
 
 </main>
 
+<div class="task-scrim" id="taskScrim"></div>
+
+<aside class="tasks" id="taskPanel" aria-hidden="true">
+  <header class="tasks-head">
+    <div>
+      <h2 id="taskTitle">Newcomer checklist</h2>
+      <p class="tasks-sub" id="taskSub"></p>
+    </div>
+    <button type="button" class="tasks-close" id="taskClose" aria-label="Close">
+      <svg class="ico" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M7 7l10 10 M17 7L7 17"/></svg>
+    </button>
+  </header>
+  <div class="tasks-prog">
+    <div class="tasks-bar" role="progressbar" aria-valuemin="0" aria-valuemax="22" aria-valuenow="0"><i id="taskBar"></i></div>
+    <span class="tasks-count" id="taskCount"></span>
+  </div>
+  <div class="tasks-list" id="taskList"></div>
+  <footer class="tasks-foot">
+    <button type="button" class="ghost" id="taskReset">Reset</button>
+    <span class="tasks-saved" id="taskSaved"></span>
+  </footer>
+</aside>
+
 <footer class="footer">
   <span class="foot-group" data-i18n="footer.group">Group 16 · AISC1000A (LA12)</span>
   <span class="foot-sep" aria-hidden="true">·</span>
@@ -91,7 +121,9 @@
 <script src="src/steps.js"></script>
 <script src="src/nlu.js"></script>
 <script src="src/data/scenarios.js"></script>
+<script src="src/data/tasks.js"></script>
 <script src="src/map.js"></script>
 <script src="src/app.js"></script>
+<script src="src/tasks.js"></script>
 </body>
 </html>

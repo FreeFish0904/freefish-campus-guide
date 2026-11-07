@@ -4,7 +4,7 @@
 
 Everything runs locally; there is no backend.
 
-- `node tests/run_tests.js` runs 49 cases / 602 assertions against the same
+- `node tests/run_tests.js` runs 49 cases / 641 assertions against the same
   scripts the browser loads and writes `docs/TEST_RESULTS.md`.
 - `node tests/check_graph.js` validates both data sets alone with the same
   checks (`tests/check_campus.js`): demo 214 nodes / 300 edges / 57 places,
@@ -13,7 +13,10 @@ Everything runs locally; there is no backend.
   footprint, and every declared quirk still true.
 - `tests/smoke.html` drives the real interface: five cards, three languages,
   a step click, a floor tab, the player, the step-free switch, a question with
-  no origin, and gibberish — 17 checks, 0 JavaScript errors.
+  no origin, and gibberish; then, on the HKUST frame, the checklist (open, tick,
+  persist, Go, all-done, reset) — 30 checks, 0 JavaScript errors.
+- `tests/font_check.html` rasterises every printable character and inspects the
+  live DOM for an icon that is a character — 921 checks, 0 problems.
 - `tests/layout_check.html` re-renders every floor in every language with and
   without a route, for each campus (`?data=demo` 72 renders / 1273 texts,
   `?data=ust` 48 renders / 999 texts), measures each label with `getBBox()` and
@@ -154,10 +157,115 @@ stays as `?data=demo` because the 49-case suite asserts exact routes on it.
   renders / 1273 texts / 0 problems, HKUST 48 renders / 999 texts / 0 problems.
 - Screenshots regenerated from the HKUST data at 1440x900 and 390x844.
 
+## Font/icon audit + newcomer checklist (2026-11-07)
+
+### What the audit found
+
+The page and the SVG plan shared one font stack, and the text itself was clean:
+no emoji, no private-use characters, every CJK string rendering from PingFang /
+Noto Sans SC. The problem was one layer up - **five icons were characters**:
+
+| where | was | now |
+|---|---|---|
+| brand mark | `◇` | `<svg class="ico">` diamond |
+| zoom out | `−` (U+2212, not a hyphen) | SVG minus |
+| zoom in | `+` | SVG plus |
+| fit | `⤢` | SVG corner brackets |
+| arrived | `✓` | SVG tick |
+
+A character is not an icon: it is a different weight on macOS, a different
+width on Windows, and on a box whose fonts lack it, a hollow box the size of the
+font. All five are now inline `<svg class="ico">` with their own pixel
+`width`/`height` and `stroke: currentColor`, so **neither the font size nor the
+font stack can resize or reshape an icon** - and an icon cannot move a label.
+
+The map is not exempt: `#map text { font-family: inherit }` was inheritance, not
+a promise, so the stack moved into `--font-ui` and both `body` and the SVG labels
+read it.
+
+### The new check
+
+`tests/font_check.html` (wired into `browser_check.py`) answers both halves:
+
+- Rasterises **every character the app can print** - UI dictionary, scenario
+text, the checklist, all 64 real place names, in three languages, **865 unique
+characters** - and compares each bitmap with the `.notdef` box (drawn from
+U+10FFFE, a noncharacter, so no font maps it). Also flags anything painted by a
+colour font, because an emoji would ignore our colour.
+- Walks the live DOM: icon slots (zoom, brand, arrived badge, checklist entry /
+close / tick) must hold an `<svg>` with a rendered size; a lone dingbat or arrow
+in the toolbars/thread is an error; SVG labels must resolve to the same family
+as the page.
+
+Result: **865 characters, 0 tofu, 0 colour-font characters, 921 DOM checks, 0
+problems.**
+
+### The checklist layer
+
+- `src/data/tasks.js`: **22 tasks in 5 groups** (before you arrive / four cards,
+one ID / SIS course selection / first days on campus / money, software, apps)
+plus **5 tips** that never count towards progress. Every item carries the
+section of `data/ust-newcomer.txt` it came from, and an `at` room id where the
+guide names a place that exists on the plan.
+- `src/tasks.js`: the drawer. Ticks persist in `localStorage['fust.tasks.v1']`
+under the campus id, progress is shown twice (badge + bar), **Go** calls
+`FUST.App.goTo()` so the checklist and the chat box share one planner, and an
+item that happens off campus is labelled instead of being given a fake route.
+- Hidden on `?data=demo`: the checklist is HKUST-specific and the demo campus is
+fictional, so the entry point is removed rather than faked.
+
+### Bugs found and fixed in this pass
+
+14. Eight places on the plan were reachable only through a glyph the font stack
+    might not carry (`⤢`, `◇`, `−`, `✓`). All replaced by SVG;
+    see the table above.
+15. `tests/layout_check.html` had no assertion for **text over a POI dot** - a
+    label could be painted straight through a marker and still pass. Added; it
+    immediately found 6 sub-pixel grazes ("逸夫演艺中心主厅" on G/F, zh/yue,
+    every render). `placeLabel()` now nudges away from the collision in 1-unit
+    steps when every candidate collides, instead of accepting the least-bad one.
+18. The label check only ever ran in a 1000px pane, which is the *easiest* one:
+    type is sized in screen px, so in a narrow pane `--u` grows and every label
+    covers more of the map. Sweeping 1000 / 700 / 520px found **136 problems on
+    HKUST** (and 60 on the demo campus) that no screenshot had shown - room
+    labels piled on each other and building names ran off the bottom of the
+    sheet. Fixed in three parts: room labels that still collide (or cannot stay
+    inside their building) are now **dropped** instead of drawn on top of
+    something; a two-line building name now reserves room for its second line
+    before choosing a row, so it can no longer hang off the canvas; and building
+    names are sized in map units with a shrink-to-fit retry (17 → 14.6 → 12.6)
+    rather than in screen px, so the same floor lays out the same way at any pane
+    width. The check now also asserts that **no room label is dropped at 1000px**,
+    so the fix cannot quietly hide behind the new drop rule.
+16. The all-done line was rendered inside `if (done === total)`, so the tick that
+    completed the list could never reveal it (caught by clicking all 22 in the
+    smoke test). It is now always in the DOM and toggled by `hidden`.
+17. `font_check.html` intermittently reported nothing at all: on a cold start the
+    iframe can still be `about:blank` when its `load` event has already fired, so
+    the check ran against an empty document. It now polls for the app, and
+    `browser_check.py` retries a page that produced no verdict instead of
+    reporting it as a failure.
+
+### Re-checked
+
+- `node tests/check_graph.js` - demo 214/300, HKUST 240 nodes / 291 edges / 64
+  rooms, plus the new checklist checks (22 tasks / 5 groups / 5 tips, every
+  `at` id a real room, every string in three languages, every item sourced).
+- `node tests/run_tests.js` - 49 cases / 641 assertions / 0 failed (39 of
+  them come from the 18 new `tasks.*` strings in three languages).
+- `python3 tests/browser_check.py` - smoke **30 checks / 0 errors** (15 demo + 15
+  HKUST), font check **921 DOM checks / 0 problems**, label layout at three pane
+  widths: demo 132 renders / 2092 texts, HKUST 102 renders / 1762 texts, both
+  0 problems (demo drops 39 labels at 520px, HKUST 33 at 700px and 77 at 520px -
+  reported, not hidden).
+- Screenshots: checklist drawer desktop EN/ZH and at 390x844.
+
 ## Still weak
 
 Two data sets to keep in step; 47 places still marked 未核实; constant walking
-speed and lift waits; no voice input. The newcomer to-do checklist (the tasks
-and tips in `data/ust-newcomer.txt`) is not wired into the UI yet.
+speed and lift waits; no voice input. The checklist covers the newcomer guide,
+not the whole first term: it has no dates, no reminders and no account, and the
+five tips next to it are advice, not instructions. Nothing in it is verified
+against an official calendar yet.
 
 

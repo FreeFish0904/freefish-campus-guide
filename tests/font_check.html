@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Font + icon check</title>
+<link rel="stylesheet" href="../styles.css">
+<style>
+  #RESULT { font: 12px/1.5 ui-monospace, Menlo, monospace; white-space: pre-wrap; padding: 16px; }
+  #frame { position: fixed; left: -3000px; top: 0; width: 1400px; height: 900px; border: 0; }
+</style>
+</head>
+<body>
+
+<pre id="RESULT">running...</pre>
+<iframe id="frame" src="../index.html?data=ust&amp;lang=en"></iframe>
+
+<script src="../src/data/graph.js"></script>
+<script src="../src/data/campus.js"></script>
+<script src="../src/data/campus.ust.js"></script>
+<script src="../src/data/active.js"></script>
+<script src="../src/icons.js"></script>
+<script src="../src/i18n.js"></script>
+<script src="../src/router.js"></script>
+<script src="../src/steps.js"></script>
+<script src="../src/nlu.js"></script>
+<script src="../src/data/scenarios.js"></script>
+<script src="../src/data/tasks.js"></script>
+<script src="../src/map.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* =====================================================================
+ * Two questions, both of them about the same bug:
+ *
+ *   "the label is tofu on the projector"     -> does every character the
+ *                                               app can print have a real
+ *                                               glyph, from a text font?
+ *   "the icon turned into a box / an emoji"  -> is any icon a *character*
+ *                                               instead of an SVG?
+ *
+ * Text and icons share one font stack, so a character the stack cannot
+ * draw silently becomes .notdef (a hollow box), and an emoji code point
+ * gets handed to a colour font that paints over our colours. Both are
+ * checked by rasterising, not by trusting a hand-written list.
+ * ===================================================================== */
+
+var C = globalThis.FUST.Campus;
+var I = globalThis.FUST.I18N;
+
+var out = [];
+var problems = [];
+var checks = 0;
+
+function fail(msg) { problems.push(msg); }
+
+/* ------------------------------------------------------------ 1. stack */
+var bodyFont = getComputedStyle(document.body).fontFamily;
+out.push('font stack: ' + bodyFont);
+
+/* the stack must name a CJK face that is actually installed, otherwise a
+   Windows lecture-room PC substitutes whatever it feels like */
+var NEEDS = ['PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', 'Hiragino Sans', 'Noto Sans CJK SC'];
+var haveCJK = NEEDS.filter(function (f) {
+  return bodyFont.indexOf(f) >= 0 && document.fonts.check('12px "' + f + '"');
+});
+checks++;
+if (!haveCJK.length) { fail('no installed CJK face in the font stack'); }
+out.push('CJK faces present: ' + (haveCJK.join(', ') || 'NONE'));
+
+/* -------------------------------------------------- 2. glyph coverage */
+/* every string the app can put on screen, including the data files */
+var corpus = [];
+function collect(node) {
+  if (typeof node === 'string') { corpus.push(node); return; }
+  if (Array.isArray(node)) { node.forEach(collect); return; }
+  if (node && typeof node === 'object') {
+    Object.keys(node).forEach(function (k) { collect(node[k]); });
+  }
+}
+[I.DICT, globalThis.FUST.SCENARIOS, globalThis.FUST.TASKS,
+ C.ROOMS, C.BUILDINGS, C.CORES, C.QUIRKS, C.meta].forEach(function (block) {
+  if (block) { collect(block); }
+});
+
+var chars = {};
+corpus.join('').split('').forEach(function (ch) { chars[ch] = 1; });
+var list = Object.keys(chars).filter(function (ch) {
+  return !/\s/.test(ch) && ch.codePointAt(0) > 31;
+});
+
+var cv = document.createElement('canvas');
+cv.width = 40; cv.height = 44;
+var cx = cv.getContext('2d', { willReadFrequently: true });
+
+function raster(ch) {
+  cx.clearRect(0, 0, 40, 44);
+  cx.font = '24px ' + bodyFont;
+  cx.textBaseline = 'top';
+  cx.fillStyle = '#000';
+  cx.fillText(ch, 4, 4);
+  var d = cx.getImageData(0, 0, 40, 44).data;
+  var sig = [], ink = 0, colour = 0;
+  for (var i = 0; i < d.length; i += 4) {
+    if (d[i + 3] > 24) {
+      ink++;
+      sig.push(i);
+      /* a colour font (emoji) paints with hue; our text is pure black */
+      if (Math.abs(d[i] - d[i + 1]) > 12 || Math.abs(d[i + 1] - d[i + 2]) > 12) { colour++; }
+    }
+  }
+  return { sig: sig.join(','), ink: ink, colour: colour };
+}
+
+
+/* .notdef: U+10FFFE is a noncharacter, so no font maps it - whatever the
+   browser draws for it *is* the box we are looking for */
+var notdef = raster('\u{10FFFE}');
+out.push('notdef reference: ' + notdef.ink + ' ink px');
+
+var tofu = [], emoji = [];
+list.forEach(function (ch) {
+  var g = raster(ch);
+  checks++;
+  if (!g.ink || (notdef.ink && g.sig === notdef.sig)) { tofu.push(ch); return; }
+  if (g.colour > g.ink * 0.15) { emoji.push(ch); }
+});
+
+function show(ch) {
+  return 'U+' + ch.codePointAt(0).toString(16).toUpperCase().padStart(4, '0') +
+         ' "' + ch + '"';
+}
+if (tofu.length) { fail('no glyph (tofu) for: ' + tofu.slice(0, 12).map(show).join(', ')); }
+if (emoji.length) { fail('drawn by an emoji/colour font: ' + emoji.slice(0, 12).map(show).join(', ')); }
+out.push('characters checked: ' + list.length +
+         '   tofu: ' + tofu.length + '   colour-font: ' + emoji.length);
+
+/* ------------------------------------------------ 3. the live document */
+var frame = document.getElementById('frame');
+var doc = frame.contentDocument || frame.contentWindow.document;
+
+function render() {
+  var input = doc.getElementById('askInput');
+  var form = doc.getElementById('askForm');
+  input.value = 'I am at the library entrance, how do I get to the LG1 canteen?';
+  form.dispatchEvent(new frame.contentWindow.Event('submit'));
+}
+
+/* An icon that is a character is the bug; an icon that is an <svg> is not.
+   Anything in these slots must therefore be an <svg> with a rendered pixel
+   size - if it were sized in `em`, changing the font size would change the
+   icon, which is the coupling this test exists to prevent. */
+var SLOTS = [
+  { sel: '#zoomOut', name: 'zoom out' },
+  { sel: '#zoomIn', name: 'zoom in' },
+  { sel: '#zoomFit', name: 'fit' },
+  { sel: '.logo', name: 'brand mark' },
+  { sel: '.step-arrive .num', name: 'arrived badge' },
+  { sel: '#taskClose', name: 'checklist close' },
+  { sel: '#taskList .task-box', name: 'checklist tick' },
+  /* a labelled button is fine: the icon is still an SVG, the word is still
+     text - what must never happen is a *glyph* standing in for the icon */
+  { sel: '#taskOpen', name: 'checklist entry', label: true }
+];
+
+function checkSlots(where) {
+  SLOTS.forEach(function (s) {
+    var el = doc.querySelector(s.sel);
+    if (!el) { fail(where + ': missing ' + s.sel); return; }
+    checks++;
+    var svg = el.querySelector('svg');
+    var text = (el.textContent || '').trim();
+    if (!svg) {
+      fail(where + ': ' + s.name + ' (' + s.sel + ') is the text "' + text + '", not an svg');
+      return;
+    }
+    if (text && !s.label) {
+      fail(where + ': ' + s.name + ' (' + s.sel + ') mixes an svg with the text "' + text + '"');
+    }
+    var r = svg.getBoundingClientRect();
+    checks++;
+    if (!(r.width > 0 && r.height > 0)) {
+      fail(where + ': ' + s.name + ' has no rendered size');
+    }
+  });
+}
+
+function walkTextNodes(root, cb) {
+  var walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  var n;
+  while ((n = walker.nextNode())) { cb(n); }
+}
+
+/* a lone dingbat or arrow standing in for an icon passes the checks above
+   (real text, real glyph) but breaks the same way: it changes shape per
+   platform, and some of them are the ones that turn into boxes */
+var SYMBOLS = /^[\u2190-\u21FF\u2200-\u22FF\u2300-\u23FF\u2900-\u297F\u25A0-\u25FF\u2600-\u27BF\u2B00-\u2BFF]+$/;
+
+function checkChrome(where) {
+  ['header.topbar', '.map-head', '.map-foot', '.chips', '#thread', '#taskPanel']
+    .forEach(function (sel) {
+    var root = doc.querySelector(sel);
+    if (!root) { fail(where + ': missing ' + sel); return; }
+    walkTextNodes(root, function (n) {
+      var t = n.nodeValue.trim();
+      if (!t || t.length > 3) { return; }
+      checks++;
+      if (SYMBOLS.test(t)) {
+        fail(where + ': "' + t + '" in ' + sel + ' is a font glyph used as an icon');
+      }
+    });
+  });
+}
+
+/* the plan is SVG text, so it does not inherit the page font by accident:
+   if this ever returns a different family, half the labels change size */
+function checkMapFont(where) {
+  var txt = doc.querySelectorAll('#map text');
+  if (!txt.length) { fail(where + ': the map drew no text'); return; }
+  checks++;
+  var got = getComputedStyle(txt[0]).fontFamily;
+  if (got !== bodyFont) { fail(where + ': map labels use a different stack: ' + got); }
+}
+
+function finish() {
+  try {
+    checkSlots('ust/en');
+    checkChrome('ust/en');
+    checkMapFont('ust/en');
+  } catch (e) {
+    fail('exception: ' + (e && e.message));
+  }
+
+  out.push('DOM checks: ' + checks + '   problems: ' + problems.length);
+  out.push('');
+  var seen = {};
+  if (!problems.length) {
+    out.push('OK - every character the app can print has a glyph from a text font,');
+    out.push('     and every icon is an <svg> with its own pixel size.');
+  } else {
+    problems.forEach(function (p) {
+      if (seen[p]) { return; }
+      seen[p] = 1;
+      out.push('FAIL  ' + p);
+    });
+  }
+  document.getElementById('RESULT').textContent = out.join('\n');
+}
+
+function start() {
+  try {
+    render();
+    /* the app renders synchronously, but one tick lets layout settle so
+       getBoundingClientRect() sees the final box */
+    setTimeout(finish, 150);
+  } catch (e) {
+    document.getElementById('RESULT').textContent = 'ERROR: ' + (e && e.message) + '\n' + (e && e.stack);
+  }
+}
+
+/* Poll instead of listening for `load`: on a cold start the iframe can
+   still be about:blank when its load event has already fired, and reading
+   a blank document would report "no font stack" for the wrong reason. */
+var waits = 0;
+function waitForApp() {
+  var d = frame.contentDocument;
+  if (d && d.getElementById('askInput') && d.querySelectorAll('#taskList .task').length) {
+    start();
+    return;
+  }
+  if (++waits > 200) {
+    document.getElementById('RESULT').textContent =
+      'ERROR: the app never finished loading inside the frame';
+    return;
+  }
+  setTimeout(waitForApp, 50);
+}
+waitForApp();
+
+})();
+</script>
+</body>
+</html>
+

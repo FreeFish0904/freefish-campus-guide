@@ -96,6 +96,32 @@ and a visible correction note instead of a silent guess.
 
 ---
 
+## The checklist (not a query, but the other way in)
+
+Top right, **任务清单 / Checklist** — 22 things to get done, five groups,
+five tips, and a counter that survives a reload. Anything that happens at a
+place on the plan has a **Go** button:
+
+> task *Register the ITSC account and Duo Mobile* → **Go** →
+> *"Heading to ITSC Service Desk — where are you starting from?"* → pick an origin →
+> the same route card the chat box produces.
+
+What the split looks like:
+
+| | |
+|---|---|
+| On the map | LG1 canteens, ITSC (twice), the ATM, the SU store, the bookstore,
+  the 24-hour study area, the sea-view seats, the pool, the printers — **10 of 22** |
+| Off campus | HKID, the student visa + D endorsement, the Octopus, the SIM —
+  labelled *off campus*, no fake route |
+| Neither | paperwork with no place on a floor plan: accepting the offer, the
+  deposit, the student card, the four SIS steps, the app list — **8 of 22** |
+
+`index.html?data=ust&tasks=1` opens the drawer directly; `?data=demo` hides the
+entry point, because the demo campus is fictional and the checklist is not.
+
+---
+
 ## Deep links
 
 The address bar keeps the last query, so any of these can be shared:

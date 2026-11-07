@@ -35,6 +35,18 @@
   /* legend order: the things a newcomer looks for first come first ----- */
   var CATS = ['food', 'study', 'admin', 'sport', 'transport', 'hall', 'facility'];
 
+  /* Interface glyphs. Same 24x24 grid, same idea as the POI icons, and for
+     the same reason: "⤢" or "✓" is a different shape on macOS, Windows and
+     the lecture-room projector, and the glyphs a font happens not to carry
+     come out as a hollow box. Anything that *is* an icon is an SVG. */
+  var UI = {
+    minus: 'M6 12h12',
+    plus:  'M12 6v12 M6 12h12',
+    fit:   'M9 4H4v5 M15 4h5v5 M15 20h5v-5 M9 20H4v-5',
+    check: 'M5 12.5l4.5 4.5L19 7',
+    mark:  'M12 3.5 20.5 12 12 20.5 3.5 12z'
+  };
+
   /* 24x24 line glyphs -------------------------------------------------- */
   var GLYPHS = {
     /* cup with a handle */
@@ -56,6 +68,23 @@
   };
 
   function catOf(poi) { return POI_CAT[poi] || 'facility'; }
+
+  /* an inline <svg class="ico"> with its own pixel size, so neither the
+     font-size nor the font stack can change what an icon looks like */
+  function svg(name, size) {
+    var NS = 'http://www.w3.org/2000/svg';
+    var s = document.createElementNS(NS, 'svg');
+    s.setAttribute('viewBox', '0 0 24 24');
+    s.setAttribute('width', size);
+    s.setAttribute('height', size);
+    s.setAttribute('class', 'ico ico-' + name);
+    s.setAttribute('aria-hidden', 'true');
+    s.setAttribute('focusable', 'false');
+    var p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', UI[name] || GLYPHS[name] || '');
+    s.appendChild(p);
+    return s;
+  }
 
   /* <defs> holding one <symbol> per glyph. Built fresh on every render,
      because the map clears the whole <svg> before drawing. */
@@ -79,7 +108,9 @@
     POI_CAT: POI_CAT,
     CATS: CATS,
     GLYPHS: GLYPHS,
+    UI: UI,
     catOf: catOf,
+    svg: svg,
     defs: defs
   };
 })();

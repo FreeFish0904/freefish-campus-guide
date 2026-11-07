@@ -65,6 +65,10 @@ them: **REAL CAMPUS · 47 to verify**.
   highlighted, floors switching automatically during the walkthrough animation.
 - **Re-translates live** — switching language re-renders the route that is
   already on screen instead of starting over.
+- **Knows what has to get done** — a 22-item newcomer checklist (offer, four
+  cards one ID, SIS course selection, first days on campus, money/software/apps)
+  kept in `localStorage`. Tasks that happen at a place on the map get a **Go**
+  button, which asks the same planner the chat box asks.
 
 ## Run it
 
@@ -105,6 +109,7 @@ src/data/campus.js      the fictional demo campus (spec + build)
 src/data/campus.ust.js  HKUST Clear Water Bay (spec + build, with sources)
 src/data/active.js      picks the campus: ?data=demo | ?data=ust (default)
 src/data/scenarios.js   five queries per campus, in three languages
+src/data/tasks.js       the 22-item newcomer checklist + 5 tips (sourced)
 src/icons.js            POI categories + the seven inline SVG icons
 src/i18n.js             every UI string in EN / 中文 / 粵語
 src/nlu.js              normalisation, segmentation, entity matching, typos
@@ -112,6 +117,7 @@ src/router.js           Dijkstra, step-free filter, nearest-POI search
 src/steps.js            path -> walk / lift / stairs segments with landmarks
 src/map.js              SVG floor plans + walkthrough player
 src/app.js              state, chat thread, wiring
+src/tasks.js            the checklist drawer: ticks, progress, Go
 tests/                  graph + data checkers, 49-case suite, browser checks
 docs/                   test log, sample queries, deploy guide, screenshots
 ```
@@ -127,10 +133,33 @@ one spec file — which is exactly what `campus.ust.js` is.
 **The plan.** `map.js` draws one floor at a time in four layers: paper, walls and
 corridors, the route, then rooms and words. Labels are placed by measuring each
 one with `getBBox()` against everything already on the floor (route, cores,
-other labels, the walls of its building) instead of using fixed offsets. Zoom is
-a window over the same 1000x660 map units, and marker/type sizes are divided by
-`--u` (units per CSS pixel) so text stays the same size on screen while the
-geometry grows: three levels of detail pick which labels are worth drawing.
+other labels, POI dots, the walls of its building) instead of using fixed
+offsets; when every candidate collides, the label is nudged in one-unit steps,
+and if it still cannot be placed a *room* label is dropped rather than drawn on
+top of something. Zoom is a window over the same 1000x660 map units, and room
+markers and type are divided by `--u` (units per CSS pixel) so they keep their
+screen size while the geometry grows. Building names go the other way: 17 map
+units whatever the pane, so a floor lays out the same way in a wide window and a
+narrow one - and they shrink to fit rather than run into the next building.
+
+**Text and icons never share a mechanism.** Every icon — POI categories, zoom
+buttons, the brand mark, the "arrived" tick, the checklist box — is an inline
+`<svg class="ico">` with its own pixel width/height, stroked with
+`currentColor`. Nothing is an emoji and no `⤢`-style glyph stands in for an
+icon, because a character has a different shape on every OS and the ones a font
+happens not to carry come out as a hollow box. The page and the SVG labels both
+draw from one `--font-ui` stack, so a typography change cannot resize an icon,
+and an icon size cannot move a label. `tests/font_check.html` enforces both
+halves of that rule.
+
+**The checklist is data, not code.** `src/data/tasks.js` holds 22 items in five
+groups, each tagged with the section of the newcomer guide it came from, plus
+five "worth knowing" tips that never count towards progress. An item with an
+`at` room id gets a **Go** button that calls `FUST.App.goTo` — the same planner
+the chat box uses, so a task and a question cannot disagree. Ticks live in
+`localStorage` under the campus id, so `?data=demo` and `?data=ust` never share
+state, and an item that happens off campus says so instead of pretending the map
+can help.
 
 **Cost model.** Walking is `metres / 1.35 m/s`; stairs are 16 s per floor;
 a lift ride is `wait + per-floor` with the wait charged once per ride; an
@@ -140,23 +169,33 @@ escalator is 22 s. Step-free mode removes every edge flagged
 ## Tests
 
 ```bash
-node tests/check_graph.js     # data integrity for BOTH campuses
-node tests/run_tests.js       # 49 cases / 602 assertions -> docs/TEST_RESULTS.md
-python3 tests/browser_check.py  # smoke + label layout, headless Chrome
-open tests/smoke.html         # 21 UI checks, driven in a real browser
+node tests/check_graph.js     # data integrity: both campuses + the checklist
+node tests/run_tests.js       # 49 cases / 641 assertions -> docs/TEST_RESULTS.md
+python3 tests/browser_check.py  # smoke + fonts + label layout, headless Chrome
+open tests/smoke.html         # 30 UI checks, driven in a real browser
 open tests/layout_check.html  # label layout: every floor x language x scenario
+open tests/font_check.html    # every character has a glyph; no icon is a glyph
 python3 tests/screenshots.py  # regenerate docs/screenshots
 ```
 
 `layout_check.html` measures every `<text>` with `getBBox()` after each render
-and fails if a label touches another label, a lift box, the route line, the
-canvas edge, or the walls of its own building. It runs once per campus:
-**demo 72 renders / 1273 texts / 0 problems**, **HKUST 48 renders / 999 texts /
-0 problems**. Add `?data=ust&lang=en&floor=G&dump` to print the computed boxes.
+and fails if a label touches another label, a lift box, a POI dot, the route
+line, the canvas edge, or the walls of its own building. It runs once per
+campus, at three pane widths, because type is sized in screen pixels: at
+1000px **every label must fit**, at 700px and 520px labels may be dropped but
+nothing may overlap. **demo 132 renders / 2092 texts / 0 problems**, **HKUST
+102 renders / 1762 texts / 0 problems** (33 and 77 labels dropped at 700px and
+520px). Add `?data=ust&lang=en&floor=G&dump` to print the computed boxes.
 
-Current status: **49 cases, 602 assertions, 0 failures; 21 UI checks, 0 script
-errors; 0 label collisions on either campus**. Details and the bugs found on
-the way are in [`docs/TEST_LOG.md`](docs/TEST_LOG.md).
+`font_check.html` rasterises every character the app can print (UI strings,
+scenario text, the checklist, every place name, 865 unique characters in three
+languages) and fails if one comes out as `.notdef` or is drawn by a colour
+font; then it walks the live DOM and fails if an icon slot holds a character
+instead of an `<svg>`. **0 tofu, 0 colour-font characters, 921 DOM checks.**
+
+Current status: **49 cases, 641 assertions, 0 failures; 30 UI checks, 0 script
+errors; 0 label collisions at three pane widths and 0 font/icon conflicts**. Details and the bugs
+found on the way are in [`docs/TEST_LOG.md`](docs/TEST_LOG.md).
 
 ## Map controls
 
@@ -177,8 +216,10 @@ names survive, 0.92–1.7× adds room names, above 1.7× adds category icons.
 |---|---|
 | ![Campus](docs/screenshots/desktop-skybridge.png) | ![Chinese](docs/screenshots/desktop-zh.png) |
 | G/F: the whole campus, piazza → bus stop | 中文, library → LG1 canteen |
-| ![Fastest](docs/screenshots/desktop-fastest.png) | ![Phone](docs/screenshots/mobile-390.png) |
-| LG7 → LT-A: two lift banks, fastest | 390 × 844 phone layout |
+| ![Fastest](docs/screenshots/desktop-fastest.png) | ![Checklist](docs/screenshots/desktop-tasks.png) |
+| LG7 → LT-A: two lift banks, fastest | the newcomer checklist drawer |
+| ![Phone](docs/screenshots/mobile-390.png) | |
+| 390 × 844 phone layout | |
 
 ## Known limitations
 
@@ -194,6 +235,10 @@ names survive, 0.92–1.7× adds room names, above 1.7× adds category icons.
   instead of a surveyed distance.
 - Two-finger pinch is not wired up yet: on a phone the map pans with one finger
   and zooms with the ± buttons.
+- Checklist ticks are per browser, not per person: clearing site data clears
+  them, and there is no account to sync them across devices.
+- The checklist is HKUST-only and says so - on `?data=demo` the entry point is
+  hidden rather than showing a made-up version of it.
 
 ## Deploying
 

@@ -114,4 +114,53 @@ function checkCampus(C, label) {
   return { label: label, problems: problems, notStepFree: notStepFree };
 }
 
-module.exports = { checkCampus: checkCampus };
+/* The newcomer checklist is data like the campus: a typo in a room id turns
+   a "Go" button into a button that does nothing, and a missing translation
+   shows up as an empty row. Checked separately so the failure names the
+   task, not the campus. */
+function checkTasks(T, C) {
+  const problems = [];
+  const ok = (cond, msg) => { if (!cond) problems.push(msg); };
+  const LANGS = ['en', 'zh', 'yue'];
+
+  const groupIds = new Set((T.groups || []).map(g => g.id));
+  const ids = new Set();
+
+  (T.items || []).forEach(it => {
+    ok(!ids.has(it.id), 'duplicate task id ' + it.id);
+    ids.add(it.id);
+    ok(groupIds.has(it.group), it.id + ': unknown group ' + it.group);
+    ok(!!it.src, it.id + ': no source section');
+    LANGS.forEach(l => {
+      ok(!!(it.title && it.title[l]), it.id + ': title missing ' + l);
+      ok(!!(it.note && it.note[l]), it.id + ': note missing ' + l);
+    });
+    if (it.at) {
+      const n = C.nodeById && C.nodeById[it.at];
+      ok(!!n, it.id + ': at=' + it.at + ' is not a place on this campus');
+      if (n) { ok(n.kind === 'room' || n.kind === 'core', it.id + ': at=' + it.at + ' is not a room'); }
+      ok(!it.offsite, it.id + ': off campus and on the map at the same time');
+    }
+  });
+
+  (T.groups || []).forEach(g => {
+    const n = (T.items || []).filter(i => i.group === g.id).length;
+    ok(n > 0, 'empty group ' + g.id);
+    LANGS.forEach(l => ok(!!(g.title && g.title[l]) && !!(g.note && g.note[l]),
+      'group ' + g.id + ': missing ' + l));
+  });
+
+  (T.tips || []).forEach(tip => {
+    LANGS.forEach(l => ok(!!(tip.text && tip.text[l]), 'tip ' + tip.id + ': missing ' + l));
+    ok(!!tip.src, 'tip ' + tip.id + ': no source section');
+  });
+
+  /* deliberately a golden number: the header badge and the progress bar are
+     read as "n of 22" in screenshots, so a silent addition is a change the
+     check should make you notice */
+  ok((T.items || []).length === 22, 'expected 22 tasks, found ' + (T.items || []).length);
+
+  return { problems: problems, count: (T.items || []).length };
+}
+
+module.exports = { checkCampus: checkCampus, checkTasks: checkTasks };

@@ -245,7 +245,13 @@
 
     var num = document.createElement('span');
     num.className = 'num';
-    num.textContent = isArrive ? '✓' : String(i + 1);
+    /* the tick is an SVG, not the character "✓": same reason the map icons
+       are SVG - a glyph is a different shape on every platform */
+    if (isArrive) {
+      num.appendChild(globalThis.FUST.Icons.svg('check', 12));
+    } else {
+      num.textContent = String(i + 1);
+    }
 
     var body = document.createElement('div');
     body.className = 'step-body';
@@ -496,6 +502,9 @@
     applyStatic();
     renderScenarios();
     renderThread();
+    /* the checklist panel lives in its own file; it has to re-translate too */
+    document.dispatchEvent(new (globalThis.CustomEvent || function () {})('fust:lang',
+      { detail: { lang: l } }));
     if (state.map) {
       state.map.setLang(l);
       dom.playBtn.textContent = t(state.map.isPlaying() ? 'map.pause' : 'map.play');
@@ -548,6 +557,26 @@
     }
   }
 
+  /* ---- the checklist's door into the planner -------------------------- */
+  /* A task with a place on it asks the same planner the chat box asks, so
+     a checkbox and a question can never disagree about where something is.
+     No origin yet -> the normal "where are you starting from?" flow. */
+  function goTo(roomId) {
+    if (!C.node(roomId)) { return; }
+    var from = state.current && state.current.originId;
+    if (from) {
+      runRoute(from, roomId, state.stepFree, []);
+      return;
+    }
+    state.pending = { originId: null, destId: roomId, poi: null, stepFree: state.stepFree };
+    state.log.push({
+      role: 'bot', kind: 'clarify', key: 'tasks.goingTo',
+      vars: { place: pname(roomId) },
+      chips: N.POPULAR.origin.map(function (id) { return { id: id, action: 'origin' }; })
+    });
+    renderThread();
+  }
+
   function bind() {
     dom.form.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -582,6 +611,13 @@
     renderThread();
     deepLink();
   }
+
+  /* the checklist panel calls into this instead of re-implementing routing */
+  globalThis.FUST.App = {
+    ask: ask,
+    goTo: goTo,
+    lang: function () { return state.lang; }
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

@@ -5,6 +5,10 @@
  * ===================================================================== */
 
 :root {
+  /* one font stack for the page and for the SVG labels, so text on the map
+     is never a different family from text in the chat */
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC",
+             "PingFang SC", "Hiragino Sans", "Microsoft YaHei", Roboto, sans-serif;
   --bg: #f4f6fa;
   --panel: #ffffff;
   --ink: #0f172a;
@@ -24,8 +28,7 @@
 html, body { margin: 0; padding: 0; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC",
-               "PingFang SC", "Hiragino Sans", "Microsoft YaHei", Roboto, sans-serif;
+  font-family: var(--font-ui);
   background: var(--bg);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
@@ -502,7 +505,19 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .foot-group { font-weight: 700; color: #64748b; }
 
 /* ---- SVG floor plan -------------------------------------------------- */
-#map text { font-family: inherit; user-select: none; }
+/* icons are SVG paths: geometry comes from the markup, colour from
+   currentColor, so a font change can never resize or reshape one */
+.ico {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+
+#map text { font-family: var(--font-ui); user-select: none; }
 #map { cursor: grab; touch-action: none; }
 #map.is-dragging { cursor: grabbing; }
 
@@ -695,6 +710,260 @@ button { font: inherit; color: inherit; cursor: pointer; }
   white-space: nowrap;
   box-shadow: 0 6px 18px rgba(15, 23, 42, .24);
 }
+
+/* ---- newcomer checklist --------------------------------------------- */
+/* A drawer rather than a page: the map and the chat are the product, and
+   a checklist you have to navigate away from is a checklist you forget.
+   It stays in the DOM when closed (transform + visibility, not display),
+   so a layout test can measure it without opening it. */
+.task-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 999px;
+  padding: 5px 11px 5px 9px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  line-height: 1;
+}
+.task-open:hover { border-color: var(--accent); color: var(--accent-ink); }
+.task-open[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.task-open[hidden] { display: none; }
+
+.task-open b {
+  font-size: 11px;
+  font-weight: 700;
+  background: #eef2f7;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 2px 6px;
+  font-variant-numeric: tabular-nums;
+}
+.task-open[aria-expanded="true"] b { background: rgba(255, 255, 255, .22); color: #fff; }
+
+.task-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 38;
+  background: rgba(15, 23, 42, .26);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .18s ease, visibility .18s;
+}
+body.tasks-open .task-scrim { opacity: 1; visibility: visible; }
+
+.tasks {
+  position: fixed;
+  z-index: 40;
+  top: 0; bottom: 0; left: 0;
+  width: min(430px, 94vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  box-shadow: 0 0 40px rgba(15, 23, 42, .18);
+  transform: translateX(-102%);
+  visibility: hidden;
+  transition: transform .2s ease, visibility .2s;
+}
+.tasks.open { transform: none; visibility: visible; }
+
+.tasks-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 16px 16px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.tasks-head h2 { font-size: 15px; font-weight: 700; color: var(--ink); }
+.tasks-sub { font-size: 11.5px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+
+.tasks-close {
+  flex: none;
+  width: 28px; height: 28px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 9px;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.tasks-close:hover { border-color: var(--accent); color: var(--accent-ink); }
+
+.tasks-prog {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: #fbfcfe;
+}
+.tasks-bar {
+  flex: 1 1 auto;
+  height: 6px;
+  background: #e8edf4;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.tasks-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #14b8a6, #0f766e);
+  border-radius: 999px;
+  transition: width .2s ease;
+}
+.tasks-count {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.tasks-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 6px 12px 18px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.task-group { padding-top: 12px; }
+.task-ghead { display: flex; align-items: baseline; gap: 8px; padding: 0 4px; }
+.task-ghead h3 {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.task-gnum {
+  font-size: 11px;
+  font-weight: 700;
+  color: #a3b1c2;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.task-gnote { font-size: 11.5px; color: #93a1b3; padding: 2px 4px 0; line-height: 1.4; }
+
+.task-rows { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-direction: column; gap: 2px; }
+
+.task {
+  display: flex;
+  gap: 10px;
+  padding: 9px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background .12s, border-color .12s;
+}
+.task:hover { background: #f6f9fc; }
+.task:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.task.is-done { background: #f7fdfb; border-left-color: var(--accent); }
+.task.is-done .task-title { color: #8fa3b6; text-decoration: line-through; text-decoration-color: #cbd5e1; }
+
+/* the tick is an SVG that is always in the box and fades in, so checking a
+   row cannot change the row height */
+.task-box {
+  flex: none;
+  width: 18px; height: 18px;
+  margin-top: 1px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+.task.is-done .task-box { background: var(--accent); border-color: var(--accent); }
+
+.task-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.task-title { font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.35; }
+.task-note { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+
+.task-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+
+.task-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.task-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--accent-soft);
+  background: #f0fdfa;
+  color: var(--accent-ink);
+  border-radius: 999px;
+  padding: 2px 8px 2px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.task-go:hover { background: var(--accent-soft); }
+
+.task-off { font-size: 10.5px; font-weight: 600; color: #94a3b8; }
+
+.task-tips .tips {
+  list-style: none;
+  padding: 0;
+  margin: 6px 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.tips li {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  line-height: 1.5;
+  padding-left: 12px;
+  position: relative;
+}
+.tips li::before {
+  content: "";
+  position: absolute;
+  left: 2px; top: 7px;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+.tip-src { font-size: 10px; color: #a3b1c2; margin-left: 4px; }
+
+.task-all {
+  margin: 14px 4px 0;
+  padding: 9px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-ink);
+  background: #ecfdf5;
+  border: 1px solid var(--accent-soft);
+  border-radius: 10px;
+}
+
+.tasks-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--line);
+  background: #fbfcfe;
+}
+.tasks-saved { font-size: 10.5px; color: #93a1b3; line-height: 1.35; }
 
 /* ---- desktop shell --------------------------------------------------- */
 @media (min-width: 961px) {

@@ -98,11 +98,23 @@ try {
   function label(t) { return t.role + ' "' + t.text + '"'; }
 
 
+  var drops = {};   /* width tag -> labels the renderer had to drop */
+
   function inspect(where) {
     renders++;
+    var tag = where.indexOf('/') > 0 ? where.split('/')[0] + '/' : '';
+    var st = view.stats ? view.stats() : { dropped: 0 };
+    if (st.dropped) { drops[tag] = (drops[tag] || 0) + st.dropped; }
     var t = boxes();
     var lift = rects('rect.core-box');
     var route = routeRects();
+    /* a POI dot is a filled marker on the plan: a label that lands on one
+       loses half its characters to it, which is the kind of thing that
+       only shows up in a screenshot */
+    var dots = q('circle.poi-disc').map(function (c) {
+      var cx = +c.getAttribute('cx'), cy = +c.getAttribute('cy'), r = +c.getAttribute('r');
+      return { x: cx - r, y: cy - r, w: r * 2, h: r * 2 };
+    });
 
     t.forEach(function (a, i) {
       checks++;
@@ -136,6 +148,16 @@ try {
           }
         });
       }
+      /* 3b. label sitting on a POI dot */
+      if (a.role !== 'core-num') {
+        dots.forEach(function (r) {
+          var o = over(a, r);
+          if (o && o.w > 0.4 && o.h > 0.4) {
+            problems.push(where + '  text-over-dot: ' + label(a) +
+              '  (' + o.w.toFixed(1) + 'x' + o.h.toFixed(1) + ')');
+          }
+        });
+      }
       /* 4. off the canvas */
       if (a.x < -0.5 || a.y < -0.5 || a.x + a.w > 1000.5 || a.y + a.h > 660.5) {
         problems.push(where + '  text-off-canvas: ' + label(a) +
@@ -160,14 +182,44 @@ try {
   var view = globalThis.FUST.MapView.create(svg, { lang: 'en' });
   var LANGS = ['en', 'zh', 'yue'];
 
-  /* baseline: every floor with nothing routed */
-  LANGS.forEach(function (lang) {
-    view.setLang(lang);
-    C.LEVELS.forEach(function (f) {
-      view.setFloor(f);
-      inspect(f + '/' + lang + '/no-route');
+  /* Baseline: every floor with nothing routed.
+
+     The pane width matters. Type and markers are sized in screen pixels and
+     converted through `--u` (map units per CSS pixel), so the same floor is
+     laid out differently in a 1000px pane and a 520px one: `u` grows as the
+     pane shrinks, every label then covers *more* map units, and lanes that
+     were clear at 1000px start to collide. Sweeping three widths keeps a
+     phone-sized map to the same rule as a desktop one. */
+  function baseline(tag) {
+    LANGS.forEach(function (lang) {
+      view.setLang(lang);
+      C.LEVELS.forEach(function (f) {
+        view.setFloor(f);
+        inspect(tag + f + '/' + lang + '/no-route');
+      });
     });
-  });
+  }
+
+  function sweep(width, height, tag) {
+    svg.style.width = width + 'px';
+    svg.style.height = height + 'px';
+    baseline(tag);
+  }
+
+  /* the reference width is the one labels are expected to fit in: a label
+     dropped there is a placement bug, not an honest LOD decision */
+  function checkDrops() {
+    if (drops['']) {
+      problems.push('at 1000px ' + drops[''] + ' room labels could not be placed');
+    }
+  }
+
+  sweep(1000, 660, '');
+  sweep(700, 462, 'w700/');
+  sweep(520, 343, 'w520/');
+  checkDrops();
+  svg.style.width = '1000px';
+  svg.style.height = '660px';
 
   /* the five demo queries, in all three languages, on every floor they touch */
   globalThis.FUST.SCENARIOS.forEach(function (sc) {
@@ -216,10 +268,15 @@ try {
   out.push('Freefish floor plan - label layout check');
   out.push('renders checked: ' + renders + '   texts checked: ' + checks +
            '   problems: ' + problems.length);
+  out.push('pane widths: 1000px (no label may be dropped), 700px and 520px' +
+           ' (labels may be dropped, none may overlap)');
+  out.push('dropped labels: ' + (Object.keys(drops).length
+    ? Object.keys(drops).sort().map(function (k) { return (k || 'w1000/') + drops[k]; }).join('  ')
+    : 'none'));
   out.push('');
   if (!problems.length) {
-    out.push('OK - no text collides with another label, a lift box, the route line,');
-    out.push('     the canvas edge, or the building it belongs to.');
+    out.push('OK - no text collides with another label, a lift box, a POI dot, the');
+    out.push('     route line, the canvas edge, or the building it belongs to.');
   } else {
     var seen = {};
     problems.forEach(function (p) {

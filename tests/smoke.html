@@ -162,6 +162,97 @@
         if (doc.querySelector('.uni').textContent.indexOf('HKUST') < 0) { throw new Error('wrong header'); }
       });
 
+      /* ---- the newcomer checklist ------------------------------------- */
+      var openBtn = doc.getElementById('taskOpen');
+
+      step('ust: checklist entry point counts 22 tasks', function () {
+        if (!openBtn) { throw new Error('no button'); }
+        if (openBtn.textContent.indexOf('/22') < 0) { throw new Error('count missing: ' + openBtn.textContent); }
+      });
+
+      step('ust: checklist opens with 22 rows in 5 groups', function () {
+        openBtn.click();
+        if (!doc.getElementById('taskPanel').classList.contains('open')) { throw new Error('did not open'); }
+        var rows = doc.querySelectorAll('#taskList .task');
+        if (rows.length !== 22) { throw new Error('found ' + rows.length + ' rows'); }
+        if (doc.querySelectorAll('#taskList .task-group').length !== 6) {
+          throw new Error('groups: ' + doc.querySelectorAll('#taskList .task-group').length);
+        }
+      });
+
+      step('ust: ticking a task updates the counter', function () {
+        var row = doc.querySelector('#taskList .task');
+        row.click();
+        if (row.getAttribute('aria-checked') !== 'true') { throw new Error('not checked'); }
+        /* the badge is language-independent, the sentence next to the bar is not */
+        if (doc.getElementById('taskTabCount').textContent !== '1/22') {
+          throw new Error('badge: ' + doc.getElementById('taskTabCount').textContent);
+        }
+        if (!doc.getElementById('taskCount').textContent) { throw new Error('progress text empty'); }
+      });
+
+      step('ust: a tick survives a reload (localStorage)', function () {
+        var raw = win.localStorage.getItem('fust.tasks.v1');
+        if (!raw) { throw new Error('nothing stored'); }
+        if (raw.indexOf('ust-cwb') < 0) { throw new Error('stored under the wrong campus: ' + raw); }
+      });
+
+      step('ust: Go on a task with a place builds a route', function () {
+        var go = doc.querySelector('#taskList .task-go');
+        if (!go) { throw new Error('no Go button'); }
+        var before = doc.querySelectorAll('.card').length;
+        go.click();
+        var cards = doc.querySelectorAll('.card');
+        if (cards.length !== before + 1) { throw new Error('no new card'); }
+        var last = cards[cards.length - 1];
+        if (!last.querySelectorAll('.step').length) { throw new Error('no steps'); }
+        if (!doc.querySelectorAll('.route').length) { throw new Error('map has no route'); }
+      });
+
+      step('ust: checklist fits the 390px frame', function () {
+        var p = doc.getElementById('taskPanel');
+        var list = doc.getElementById('taskList');
+        var vw = doc.documentElement.clientWidth;
+        if (p.getBoundingClientRect().width > vw) {
+          throw new Error('panel ' + p.getBoundingClientRect().width + ' > viewport ' + vw);
+        }
+        if (list.scrollWidth > list.clientWidth + 1) {
+          throw new Error('list overflows: ' + list.scrollWidth + ' > ' + list.clientWidth);
+        }
+      });
+
+      step('ust: finishing all 22 reveals the all-done line', function () {
+        Array.prototype.forEach.call(doc.querySelectorAll('#taskList .task'), function (r) {
+          if (r.getAttribute('aria-checked') !== 'true') { r.click(); }
+        });
+        if (doc.getElementById('taskTabCount').textContent !== '22/22') {
+          throw new Error('badge: ' + doc.getElementById('taskTabCount').textContent);
+        }
+        if (doc.getElementById('taskAll').hidden) { throw new Error('all-done line still hidden'); }
+      });
+
+      step('ust: reset clears every tick', function () {
+        doc.getElementById('taskReset').click();
+        var on = 0;
+        Array.prototype.forEach.call(doc.querySelectorAll('#taskList .task'), function (r) {
+          if (r.getAttribute('aria-checked') === 'true') { on++; }
+        });
+        if (on) { throw new Error(on + ' still ticked'); }
+        if (doc.getElementById('taskTabCount').textContent !== '0/22') { throw new Error('badge not reset'); }
+        if (!doc.getElementById('taskAll').hidden) { throw new Error('all-done line still shown'); }
+      });
+
+      step('ust: checklist follows a language switch', function () {
+        var before = doc.getElementById('taskTitle').textContent;
+        doc.querySelector('#langSwitch button[data-lang="zh"]').click();
+        var after = doc.getElementById('taskTitle').textContent;
+        if (after === before) { throw new Error('drawer did not re-translate: ' + after); }
+        if (!doc.querySelector('#taskList .task .task-title').textContent) {
+          throw new Error('rows went blank');
+        }
+        doc.querySelector('#langSwitch button[data-lang="en"]').click();
+      });
+
       setTimeout(finish, 400);
     }, 700);
   }, false);

@@ -343,7 +343,49 @@
       }
 
       if (best) {
-        moveText(node, at.x + best.c.dx, at.y + best.c.dy, best.c.a);
+        var fx = at.x + best.c.dx, fy = at.y + best.c.dy;
+
+        /* Every candidate can collide - a small building full of rooms and
+           a lift leaves no clean lane. The least-bad spot is then often a
+           label that grazes a dot by half a pixel, which reads as a
+           strikethrough on the first character. Nudge away from it in
+           small steps, and only accept the move if it clears everything
+           and stays inside the building. */
+        if (best.hits > 0) {
+          /* straight up/down first (that is where a label lane lives), then
+             sideways, then the diagonals - a 2-unit graze only needs a
+             2-unit step */
+          var dirs = [[0, 1], [0, -1], [-1, 0], [1, 0],
+            [-1, 1], [1, 1], [-1, -1], [1, -1], [0, 2], [0, -2]];
+          var moved = null;
+          for (var d = 0; d < dirs.length && !moved; d++) {
+            for (var st = 1; st <= 6 && !moved; st++) {
+              var tx = fx + dirs[d][0] * st * state.u;
+              var ty = fy + dirs[d][1] * st * state.u;
+              moveText(node, tx, ty, best.c.a);
+              var nb = bboxOf(node, PAD);
+              if (!nb) { continue; }
+              if (collisions(nb) === 0 && (!cfg.bounds || inside(nb, cfg.bounds, 1))) {
+                moved = { x: tx, y: ty, b: nb };
+              }
+            }
+          }
+          if (moved) { fx = moved.x; fy = moved.y; best.b = moved.b; }
+        }
+
+        /* A room label that still lands on something after the nudge is
+           not drawn at all. Small panes make `--u` big, so every label
+           covers more of the map: past that point the honest answer is
+           dots and the hover tooltip, not a pile of overlapping words.
+           Building names and pins are never optional. */
+        if (cfg.optional && (collisions(best.b) > 0 ||
+            (cfg.bounds && !inside(best.b, cfg.bounds, 1)))) {
+          node.remove();
+          state.dropped++;
+          return null;
+        }
+
+        moveText(node, fx, fy, best.c.a);
         reserve(best.b);
       }
       return node;
@@ -449,57 +491,35 @@
         var open = C.BUILDINGS[b].kind === 'open';
         var label = I.buildingName(b, state.lang);
 
-        /* 0.9em per character is what this bold face actually measures, and
+        /* A building name belongs to the map, not to the screen: it is a
+           17-map-unit word whatever the pane is, so the same floor lays out
+           the same way in a 1000px pane and in a 520px one. Room labels are
+           the opposite - they are sized in screen px, so they shrink in map
+           units as the pane grows and are dropped when they no longer fit.
+
+           0.9em per character is what this bold face actually measures, and
            a footprint has to hold the text plus a little air on both sides */
-        var baseFs = 17 * state.u;
+        var baseFs = 17;
         var room6 = (r[2] - 8);
         var lines = [label];
         if (label.length * 0.9 * baseFs > room6) { lines = splitLabel(label); }
         var longest = Math.max.apply(null, lines.map(function (l) { return l.length; }));
-        var fs = Math.max(Math.min(baseFs, room6 / (0.9 * longest)), 9 * state.u);
-
-        var multi = lines.length > 1;
-        var lineH = fs * 1.08;
-        var firstY = r[1] - 9 - (lines.length - 1) * lineH;
-        /* a deep footprint reads best with its name inside, along the wall
-           that has no rooms against it (the bottom strip, because every
-           room label sits above its dot); a shallow one has no such strip,
-           so the name goes above the walls */
-        var deep = r[3] >= 120;
-        var insideY = r[1] + fs + 10;
-        var bottomY = r[1] + r[3] - 12;
-        var rows = deep
-          ? [bottomY, insideY, firstY, r[1] + r[3] + fs + 12]
-          : [firstY, insideY, r[1] + r[3] + fs + 12];
-        /* a place at the very top of the sheet has no room above it: keep
-           the name on the canvas rather than letting it hang off the edge */
-        rows = rows.filter(function (y) { return y - fs >= 2; });
-        var spots = [];
-        rows.forEach(function (y) {
-          if (multi) {
-            /* every line is left-aligned on the same x, so only the start
-               anchor makes sense */
-            spots.push({ x: r[0] + 4, a: 'start', y: y });
-          } else {
-            spots.push({ x: r[0] + 2, a: 'start', y: y });
-            spots.push({ x: r[0] + r[2] / 2, a: 'middle', y: y });
-            spots.push({ x: r[0] + r[2] - 2, a: 'end', y: y });
-          }
-        });
+        var cap = room6 / (0.9 * longest);   /* the largest this name may be */
 
         var name = el('text', {
-          x: spots[0].x, y: spots[0].y,
+          x: r[0], y: r[1],
           class: 'bld-name' + (open ? ' bld-name-open' : ''),
-          'text-anchor': spots[0].a,
+          'text-anchor': 'middle',
           'data-role': 'bld-name', 'data-bld': b
         }, lines[0]);
-        name.style.fontSize = fs.toFixed(2) + 'px';
         var tspans = [];
         for (var i = 1; i < lines.length; i++) {
-          var t = el('tspan', { x: spots[0].x, dy: lineH }, lines[i]);
+          var t = el('tspan', { x: r[0], dy: 0 }, lines[i]);
           name.appendChild(t);
           tspans.push(t);
         }
+        /* appended before it is measured: getBBox() on a detached node is
+           empty, which is how every label used to score zero */
         g.appendChild(name);
 
         function place(p) {
@@ -509,21 +529,80 @@
           tspans.forEach(function (t) { t.setAttribute('x', p.x); });
         }
 
+        /* Lay the name out at one font size and pick the best of the rows it
+           is allowed to use. Returns null when no row even fits on the sheet. */
+        function layout(fs) {
+          var lineH = fs * 1.08;
+          var extra = (lines.length - 1) * lineH;
+          var firstY = r[1] - 9 - extra;
+          /* a deep footprint reads best with its name inside, along the wall
+             that has no rooms against it (the bottom strip, because every
+             room label sits above its dot); a shallow one has no such strip,
+             so the name goes above the walls */
+          var deep = r[3] >= 120;
+          var insideY = r[1] + fs + 10;
+          /* a second line grows downwards from the first baseline, so the
+             bottom row moves up by the extra lines - otherwise the name
+             hangs off the footprint and, at the bottom of the sheet, off the
+             canvas */
+          var bottomY = r[1] + r[3] - 12 - extra;
+          var rows = deep
+            ? [bottomY, insideY, firstY, r[1] + r[3] + fs + 12]
+            : [firstY, insideY, r[1] + r[3] + fs + 12];
+          rows = rows.filter(function (y) {
+            return y - fs >= 2 && y + extra <= WORLD.y + WORLD.h - 2;
+          });
+
+          name.style.fontSize = fs.toFixed(2) + 'px';
+          tspans.forEach(function (t) { t.setAttribute('dy', lineH.toFixed(2)); });
+
+          var multi = lines.length > 1;
+          var spots = [];
+          rows.forEach(function (y) {
+            if (multi) {
+              /* every line is left-aligned on the same x, so only the start
+                 anchor makes sense */
+              spots.push({ x: r[0] + 4, a: 'start', y: y });
+            } else {
+              spots.push({ x: r[0] + 2, a: 'start', y: y });
+              spots.push({ x: r[0] + r[2] / 2, a: 'middle', y: y });
+              spots.push({ x: r[0] + r[2] - 2, a: 'end', y: y });
+            }
+          });
+
+          var best = null;
+          spots.forEach(function (p, i) {
+            place(p);
+            var box = bboxOf(name, 2);
+            if (!box) { return; }
+            var hits = collisions(box);
+            /* rows are ordered by preference: inside the footprint first */
+            var score = hits * 10 + i * 0.6;
+            if (!best || score < best.score) { best = { score: score, hits: hits, p: p, b: box, fs: fs }; }
+          });
+          return best;
+        }
+
+        /* Full size first. If the name cannot be placed without landing on
+           something - a small pane makes the same floor denser - try a
+           smaller one: a building must never be nameless, and shrinking to
+           fit is what a printed map does. */
         var best = null;
-        spots.forEach(function (p, i) {
-          place(p);
-          var box = bboxOf(name, 2);
-          if (!box) { return; }
-          /* rows are ordered by preference: above the footprint first */
-          var score = collisions(box) * 10 + i * 0.6;
-          if (!best || score < best.score) { best = { score: score, p: p, b: box }; }
+        [1, 0.86, 0.74].forEach(function (scale) {
+          if (best && best.hits === 0) { return; }
+          var got = layout(Math.max(Math.min(baseFs, cap) * scale, 9));
+          if (got && (!best || got.hits < best.hits)) { best = got; }
         });
 
         var nb = null;
         if (best) {
+          layout(best.fs);   /* re-apply the size the winner was measured at */
           place(best.p);
           nb = best.b;
           reserve(nb);
+        } else {
+          name.style.fontSize = Math.max(Math.min(baseFs, cap), 9).toFixed(2) + 'px';
+          place({ x: r[0] + r[2] / 2, a: 'middle', y: r[1] - 9 });
         }
 
         /* the code only goes in when it clears the name */
@@ -671,7 +750,7 @@
         if (state.route && (n.id === state.route.from || n.id === state.route.to)) { return; }
         var r = C.BUILDINGS[n.b].rect;
         placeLabel(g, txt, n, roomCandidates(n, C.SPINES[n.b]), {
-          cls: 'room-label', role: 'room-label', node: n.id,
+          cls: 'room-label', role: 'room-label', node: n.id, optional: true,
           fs: 12 * state.u, lh: 13 * state.u, wrap: true,
           cat: ICON.catOf(n.poi),
           bounds: { x: r[0], y: r[1], w: r[2], h: r[3] }
@@ -837,6 +916,7 @@
       ensureVisible();
       while (svg.firstChild) { svg.removeChild(svg.firstChild); }
       occ = [];
+      state.dropped = 0;
       /* layer order is the picture: paper, then what is under the walker,
          then the walls, then the route, then the words */
       drawDefs();
@@ -1129,6 +1209,9 @@
       fit: function () { fitView(); render(); },
       zoom: function () { return WORLD.w / state.view.w; },
       lod: function () { return state.lod; },
+      /* labels the renderer had to drop because they could not be placed
+         without landing on something else (used by the layout check) */
+      stats: function () { return { dropped: state.dropped || 0, u: state.u }; },
       focus: function (cat) {
         state.focus = cat || null;
         buildLegend();
