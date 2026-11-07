@@ -515,7 +515,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .corridor { fill: none; stroke: #e3eaf3; stroke-width: 9; stroke-linecap: round; }
 
 .room { fill: #94a3b8; }
-.room-label { font-size: 13px; fill: #5b6b7f; }
+.room-label { font-size: 12px; fill: #5b6b7f; }
 
 .core-box { fill: #1f6feb; }
 .core-stairs .core-box { fill: #64748b; }

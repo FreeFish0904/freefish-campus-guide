@@ -95,8 +95,14 @@ escalator is 22 s. Step-free mode removes every edge flagged
 node tests/check_graph.js     # data integrity: connectivity, footprints, lifts
 node tests/run_tests.js       # 49 cases / 566 assertions -> docs/TEST_RESULTS.md
 open tests/smoke.html         # 17 UI checks, driven in a real browser
+open tests/layout_check.html  # label layout: every floor x language x scenario
 python3 tests/screenshots.py  # regenerate docs/screenshots
 ```
+
+`layout_check.html` measures every `<text>` with `getBBox()` after each render
+(72 renders, ~1300 texts) and fails if a label touches another label, a lift
+box, the route line, the canvas edge, or the walls of its own building. Add
+`?lang=en&floor=4F&dump` to the URL to print the computed boxes instead.
 
 Current status: **49 cases, 566 assertions, 0 failures**. Details and the
 bugs that were found on the way are in

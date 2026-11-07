@@ -12,6 +12,10 @@ Everything runs locally; there is no backend.
 - `tests/smoke.html` drives the real interface: five cards, three languages,
   a step click, a floor tab, the player, the step-free switch, a question with
   no origin, and gibberish — 17 checks, 0 JavaScript errors.
+- `tests/layout_check.html` re-renders every floor in every language with and
+  without a route (72 renders, ~1300 `<text>` nodes), measures each label with
+  `getBBox()` and fails if one touches another label, a lift box, the route
+  line, the canvas edge, or the walls of its own building.
 
 ## Coverage
 
@@ -38,6 +42,17 @@ Everything runs locally; there is no backend.
    question marker was matched before the origin marker.
 4. "EA 7F" resolved to the whole building instead of that floor.
 5. Clicking a step in an older answer did not highlight it.
+6. Room names piled up on each other: every label was placed with `getBBox()`
+   while its group was still detached from the document, and an unlaid-out
+   node reports an empty box, so all candidates scored zero and the last one
+   (±40 below the dot) always won. The group is now appended to the `<svg>`
+   before anything is measured, labels are scored against the route, the lift
+   boxes, the other labels and the walls of their own building, and a name
+   that still cannot fit is wrapped onto two lines instead of escaping
+   through the wall.
+7. `reserveRoute()` reserved segments of *every* floor, so a line drawn on G/F
+   pushed LG1 labels away from empty space; the blocker is now filtered by the
+   floor being drawn. This was what pushed "Coffee Shop" out of the Student Hub.
 
 ## Still weak
 
