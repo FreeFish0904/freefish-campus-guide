@@ -1,19 +1,24 @@
 # Deploying the demo (GitHub Pages)
 
+**Status: published** — <https://freefish0904.github.io/freefish-campus-guide/>
+(repo <https://github.com/FreeFish0904/freefish-campus-guide>, source
+`main` / `/ (root)`). This page is kept as the record of how it was published
+and what to do on the next update.
+
 The whole site is static: `index.html`, `styles.css` and `src/`. No build
 step, no server, no database, no API keys. Publishing it is either two git
 commands (Route A) or a drag-and-drop job (Route B) — both end in the same
 two mouse clicks on the Pages setting.
 
-## Route A — push from this Mac (fastest, already prepared)
+## Route A — push from this Mac (what we actually used)
 
-The folder is already a git repository with one commit on `main`, and this
-Mac's SSH key is already authorised as **FreeFish0904**, so no password or
-token ever has to leave the machine.
+The folder is a git repository with the history on `main`, and this Mac's SSH
+key is authorised as **FreeFish0904**, so no password or token ever left the
+machine.
 
 1. Open <https://github.com/new>. Name: `freefish-campus-guide`. Visibility:
    **Public**. Do **not** tick "Add a README". Click **Create repository**.
-2. Tell the agent the repo exists (or run these two lines yourself):
+2. Push:
 
    ```bash
    cd ~/Desktop/freefish-campus-guide
@@ -21,7 +26,7 @@ token ever has to leave the machine.
    git push -u origin main
    ```
 
-3. Turn on Pages — step 3 below (that one is a web click, there is no
+3. Turn on Pages — step 3 below (that one is a web click; there is no
    command-line equivalent without a personal access token).
 
 ## Route B — drag and drop in the browser

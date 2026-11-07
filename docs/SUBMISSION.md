@@ -2,16 +2,27 @@
 
 ## 1. Demo link
 
-> **Paste here: `https://<your-username>.github.io/freefish-campus-guide/`**
+**<https://freefish0904.github.io/freefish-campus-guide/>**
 
-The site is already built and static; it only needs uploading.
-`docs/DEPLOY.md` has the drag-and-drop GitHub Pages steps (no command line,
-about two minutes). Until it is hosted, the same demo runs from the folder:
+Live on GitHub Pages, deployed from `main` (repo:
+<https://github.com/FreeFish0904/freefish-campus-guide>). The site is fully
+static — `index.html` at the repository root, no build step — so the same
+folder also runs offline:
 
 ```
 open index.html                          # double-click also works
 python3 -m http.server 8000              # or serve it locally
 ```
+
+Handy deep links to paste into a demo:
+
+| | |
+|---|---|
+| Library → LT-1 | `?q=library+to+LT-1&lang=en` |
+| Coffee shop → Annex 7F | `?q=咖啡店去附樓7樓&lang=zh` |
+| Cantonese, same trip | `?q=圖書館去 Lab 402 最快點行&lang=yue` |
+| Step-free turned off | `?q=library+to+LT-1&sf=0` |
+| Jump straight to 3/F | `?q=library+to+LT-1&floor=3F` |
 
 ## 2. Test log (~300 words)
 

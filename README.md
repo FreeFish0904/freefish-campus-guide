@@ -7,6 +7,12 @@ plan that follows along.
 Built for **AISC1000A (LA12) — Group 16**. The campus, its buildings, lift
 numbers and room codes are **fictional demo data**.
 
+**Live demo — <https://freefish0904.github.io/freefish-campus-guide/>**
+
+Try a deep link: `?q=library+to+LT-1&lang=en`, `?q=最近的洗手间&lang=zh`,
+`?q=圖書館去 Lab 402 最快點行&lang=yue`, or add `&sf=0` to switch step-free
+off.
+
 ![Desktop](docs/screenshots/desktop-en.png)
 
 ## What it does

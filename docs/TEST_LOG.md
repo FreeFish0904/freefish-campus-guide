@@ -25,6 +25,7 @@ Everything runs locally; there is no backend.
   string exists in all three languages.
 - **Data (5)** plus the graph checker above.
 - **Visual** — headless Chrome screenshots at 1440×900 and 390×844.
+- **Live** — three deep links on the deployed copy, all assets 200.
 
 ## Bugs found and fixed
 
@@ -40,7 +41,6 @@ Everything runs locally; there is no backend.
 
 ## Still weak
 
-57 POIs only; ETA assumes a constant walking speed; lift waiting times are
-constants rather than live data; there is no voice input.
+57 POIs only; constant walking speed and lift waits; no voice input.
 
 
