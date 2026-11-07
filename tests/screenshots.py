@@ -25,34 +25,38 @@ SHOTS = [
         'file': 'desktop-en.png',
         'size': (1440, 900),
         'query': {
-            'q': 'I am at the Library main entrance, how do I get to LT-1?',
+            'q': "I'm at the library entrance, how do I get to the LG1 Canteen?",
             'lang': 'en',
+            'data': 'ust',
         },
     },
     {
         'file': 'desktop-skybridge.png',
         'size': (1440, 900),
         'query': {
-            'q': 'I am at the Library main entrance, how do I get to LT-1?',
+            'q': 'How do I get from the Piazza to the bus stop?',
             'lang': 'en',
-            'floor': '2F',
+            'floor': 'G',
+            'data': 'ust',
         },
     },
     {
         'file': 'desktop-zh.png',
         'size': (1440, 900),
         'query': {
-            'q': '我在学生活动中心 LG1 的咖啡店，要去工程附楼 7 楼的高级机器人实验室，不想走楼梯',
+            'q': '我在图书馆入口，怎么去 LG1 食堂？',
             'lang': 'zh',
+            'data': 'ust',
         },
     },
     {
         'file': 'desktop-fastest.png',
         'size': (1440, 900),
         'query': {
-            'q': 'I am at the Library main entrance, how do I get to LT-1?',
+            'q': 'Fastest way from the LG7 canteen to LT-A?',
             'lang': 'en',
             'sf': '0',
+            'data': 'ust',
         },
     },
     {
@@ -61,8 +65,9 @@ SHOTS = [
         'page': 'tests/phone.html',
         'crop': (780, 1688),
         'query': {
-            'q': '我在学生活动中心 LG1 的咖啡店，要去工程附楼 7 楼的高级机器人实验室，不想走楼梯',
+            'q': '我在图书馆入口，怎么去 LG1 食堂？',
             'lang': 'zh',
+            'data': 'ust',
         },
     },
 ]

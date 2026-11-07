@@ -9,6 +9,7 @@ const vm = require('vm');
 const root = path.join(__dirname, '..');
 
 const FILES = [
+  'src/data/graph.js',
   'src/data/campus.js',
   'src/i18n.js',
   'src/router.js',

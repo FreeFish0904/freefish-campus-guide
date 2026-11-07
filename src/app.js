@@ -55,6 +55,33 @@
     });
     document.documentElement.lang = state.lang === 'zh' ? 'zh-Hans'
       : (state.lang === 'yue' ? 'zh-Hant-HK' : 'en');
+    applyCampusMeta();
+  }
+
+  /* The header names the campus the app is actually running on. With two
+     data sets (?data=demo / ?data=ust) this cannot be hard-coded in the
+     HTML any more. */
+  function applyCampusMeta() {
+    var meta = C.meta || {};
+    var uni = document.querySelector('.uni');
+    var badge = document.querySelector('.badge');
+    var foot = document.querySelector('.foot-note');
+    if (uni && meta.name) { uni.textContent = I.name(meta.name, state.lang); }
+    if (foot && meta.real && meta.note) { foot.textContent = I.name(meta.note, state.lang); }
+    if (badge) {
+      var src = meta.dataSource ? I.name(meta.dataSource, state.lang) : '';
+      var n = unverifiedCount();
+      badge.textContent = (meta.real && n)
+        ? t('app.realData', { n: n, src: src })
+        : t('app.demo');
+      badge.classList.toggle('is-real', !!(meta.real && n));
+    }
+  }
+
+  function unverifiedCount() {
+    var rooms = C.ROOMS.filter(function (r) { return r.verified === false; }).length;
+    var cores = C.CORES.filter(function (c) { return c.verified === false; }).length;
+    return rooms + cores;
   }
 
   /* ---- scenario chips -------------------------------------------------- */

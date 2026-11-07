@@ -14,23 +14,33 @@
 </head>
 <body>
 <div class="wrap">
-  <iframe id="f" src="../index.html?lang=en" title="app under test"></iframe>
+  <div>
+    <h1>Demo campus</h1>
+    <iframe id="f" src="../index.html?lang=en&data=demo" title="app under test"></iframe>
+  </div>
+  <div>
+    <h1>HKUST data</h1>
+    <iframe id="f2" src="../index.html?lang=en&data=ust" title="app on the real campus"></iframe>
+  </div>
   <div style="max-width:520px">
     <h1>UI smoke test</h1>
-    <p class="hint">Drives the real interface inside the frame: five scenario cards,
+    <p class="hint">Drives the real interface inside both frames: five scenario cards,
       three languages, a step click, a floor tab, the walkthrough player, the
-      step-free switch, a question with no origin, and gibberish.</p>
+      step-free switch, a question with no origin, and gibberish. The second
+      frame repeats the basics on the HKUST data set.</p>
     <pre id="RESULT">running…</pre>
   </div>
 </div>
 <script>
-  var errors = [], log = [], pass = 0, fail = 0;
+  var errors = [], log = [], pass = 0, fail = 0, pending = 2;
   var f = document.getElementById('f');
 
   function step(name, fn) {
     try { fn(); pass++; log.push('ok   ' + name); }
     catch (e) { fail++; log.push('FAIL ' + name + ' — ' + e.message); }
   }
+
+  function finish() { if (--pending === 0) { setTimeout(done, 400); } }
 
   function done() {
     document.getElementById('RESULT').textContent =
@@ -116,7 +126,43 @@
         doc.getElementById('askForm').dispatchEvent(new win.Event('submit'));
       });
 
-      setTimeout(done, 400);
+      setTimeout(finish, 400);
+    }, 700);
+  }, false);
+
+  /* the same interface on the HKUST data set: the point of the second
+     frame is that nothing in the app assumes the fictional campus */
+  var f2 = document.getElementById('f2');
+  f2.addEventListener('load', function () {
+    var doc = f2.contentDocument, win = f2.contentWindow;
+    win.onerror = function (m, s, l) { errors.push('ust: ' + m + ' @' + l); };
+
+    setTimeout(function () {
+      step('ust: five scenario cards render', function () {
+        var chips = doc.querySelectorAll('.chip');
+        if (chips.length !== 5) { throw new Error('found ' + chips.length); }
+      });
+
+      step('ust: first scenario routes', function () {
+        doc.querySelector('.chip').click();
+        var cards = doc.querySelectorAll('.card');
+        if (!cards.length) { throw new Error('no card'); }
+        if (!cards[cards.length - 1].querySelectorAll('.step').length) { throw new Error('no steps'); }
+      });
+
+      step('ust: plan draws the floor, its lifts and the route', function () {
+        /* the first UST scenario is on LG1, where only the library and the
+           academic building exist - that is the point of a floor plan */
+        if (doc.querySelectorAll('.bld').length < 2) { throw new Error('no buildings'); }
+        if (!doc.querySelectorAll('.core-box').length) { throw new Error('no lifts'); }
+        if (!doc.querySelectorAll('.route').length) { throw new Error('no route'); }
+      });
+
+      step('ust: header names the real campus', function () {
+        if (doc.querySelector('.uni').textContent.indexOf('HKUST') < 0) { throw new Error('wrong header'); }
+      });
+
+      setTimeout(finish, 400);
     }, 700);
   }, false);
 </script>

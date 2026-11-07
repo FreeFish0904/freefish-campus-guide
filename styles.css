@@ -521,6 +521,17 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .bld:hover { fill: #fbfdff; }
 .bld-active { fill: #f0fdf9; stroke: #5eead4; }
+/* open ground - the entrance piazza, the sea-front promenade - is not a
+   building: no fill, no shadow, just a dashed edge, so the plan still
+   reads as "you can walk here but there is no roof" */
+.bld-open {
+  fill: rgba(241, 245, 249, .55);
+  stroke: #cbd5e1;
+  stroke-dasharray: calc(9px * var(--u, 1)) calc(7px * var(--u, 1));
+  filter: none;
+}
+.bld-open:hover { fill: rgba(241, 245, 249, .8); }
+.bld-name-open { font-weight: 600; fill: #64748b; }
 .bld-name { font-size: calc(17px * var(--u, 1)); font-weight: 700; fill: #334155; }
 .bld-code { font-size: calc(11px * var(--u, 1)); font-weight: 700; fill: #a3b1c2; letter-spacing: .14em; }
 .bld-floor { font-size: calc(12px * var(--u, 1)); fill: #a3b1c2; }

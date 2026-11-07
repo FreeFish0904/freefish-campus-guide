@@ -143,12 +143,27 @@
       return { x: x0 - 26, y: y0 - 38, w: (x1 - x0) + 52, h: (y1 - y0) + 66 };
     }
 
-    /* fill the pane with the campus, keeping its aspect ratio so nothing
-       is cropped - the leftover strip stays paper, not white */
+    /* The buildings that exist on this floor: the camera should never leave
+       them behind. On HKUST's LG1 that is just the library and the academic
+       building, so the plan zooms in instead of showing empty paper. */
+    function floorBox(floor) {
+      var bs = C.buildingsOn(floor || state.floor);
+      if (!bs.length) { return null; }
+      var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      bs.forEach(function (b) {
+        var r = C.BUILDINGS[b].rect;
+        x0 = Math.min(x0, r[0]); y0 = Math.min(y0, r[1]);
+        x1 = Math.max(x1, r[0] + r[2]); y1 = Math.max(y1, r[1] + r[3]);
+      });
+      return { x: x0 - 30, y: y0 - 40, w: (x1 - x0) + 60, h: (y1 - y0) + 76 };
+    }
+
+    /* fill the pane with the floor, keeping its aspect ratio so nothing is
+       cropped - the leftover strip stays paper, not white */
     function fitView() {
       var box = elementBox();
       var ar = box.w / box.h;
-      var c = contentBox();
+      var c = floorBox(state.floor) || contentBox();
       var w = c.w, h = c.h;
       if (w / h < ar) { w = h * ar; } else { h = w / ar; }
       state.view = {
@@ -158,6 +173,20 @@
       };
       state.userZoom = false;
       return applyView();
+    }
+
+    /* Switching floor can bring buildings in that the current view has
+       cropped - follow the floor until the user takes over the camera. */
+    function ensureVisible() {
+      if (state.userZoom) { return false; }
+      var need = floorBox(state.floor);
+      if (!need) { return false; }
+      var v = state.view;
+      var covers = v.x <= need.x + 4 && v.y <= need.y + 4 &&
+                   v.x + v.w >= need.x + need.w - 4 &&
+                   v.y + v.h >= need.y + need.h - 4;
+      if (covers) { return false; }
+      return fitView();
     }
 
     function toWorld(cx, cy) {
@@ -383,58 +412,132 @@
     function drawBuildings(g, floor, activeBs) {
       C.buildingsOn(floor).forEach(function (b) {
         var r = C.BUILDINGS[b].rect;
+        var open = C.BUILDINGS[b].kind === 'open';
         var shape = el('path', {
           d: buildingPath(b),
-          class: 'bld' + (activeBs[b] ? ' bld-active' : ''),
+          class: 'bld' + (open ? ' bld-open' : '') + (activeBs[b] ? ' bld-active' : ''),
           'data-bld': b
         });
         shape.appendChild(el('title', null,
           I.buildingName(b, state.lang) + ' · ' + I.floorName(floor, state.lang)));
         g.appendChild(shape);
+      });
+    }
 
-        /* Name sits above the footprint, so it never collides with the
-           rooms drawn just inside the walls. A route that comes down
-           through that strip would draw straight over the text, so the
-           name slides left / centre / right to wherever it stays clear. */
-        var spots = [
-          { x: r[0] + 2, a: 'start' },
-          { x: r[0] + r[2] / 2, a: 'middle' },
-          { x: r[0] + r[2] - 2, a: 'end' }
-        ];
-        var name = el('text', {
-          x: spots[0].x, y: r[1] - 9, class: 'bld-name', 'text-anchor': spots[0].a,
-          'data-role': 'bld-name', 'data-bld': b
-        }, I.buildingName(b, state.lang));
-        g.appendChild(name);
+    /* Building names are the last words on the plan. Drawn after the rooms
+       and the pins they can be scored against everything already on the
+       floor, so a name slides to whichever side of its footprint is free -
+       important once a campus stacks ten buildings in four rows.
+       A name too long for its footprint wraps onto two lines rather than
+       running into the next building. */
+    function splitLabel(txt) {
+      var words = txt.split(' ');
+      if (words.length < 2) { return [txt]; }
+      var best = null;
+      for (var i = 1; i < words.length; i++) {
+        var a = words.slice(0, i).join(' ');
+        var b = words.slice(i).join(' ');
+        var worst = Math.max(a.length, b.length);
+        if (!best || worst < best.worst) { best = { a: a, b: b, worst: worst }; }
+      }
+      return [best.a, best.b];
+    }
 
-        var bestName = null;
-        spots.forEach(function (p, i) {
-          name.setAttribute('x', p.x);
-          name.setAttribute('text-anchor', p.a);
-          var box = bboxOf(name, 2);
-          if (!box) { return; }
-          var score = collisions(box) * 10 + i * 0.5;
-          if (!bestName || score < bestName.score) {
-            bestName = { score: score, p: p, b: box };
+    function drawBuildingNames(g, floor) {
+      C.buildingsOn(floor).forEach(function (b) {
+        var r = C.BUILDINGS[b].rect;
+        var open = C.BUILDINGS[b].kind === 'open';
+        var label = I.buildingName(b, state.lang);
+
+        /* 0.9em per character is what this bold face actually measures, and
+           a footprint has to hold the text plus a little air on both sides */
+        var baseFs = 17 * state.u;
+        var room6 = (r[2] - 8);
+        var lines = [label];
+        if (label.length * 0.9 * baseFs > room6) { lines = splitLabel(label); }
+        var longest = Math.max.apply(null, lines.map(function (l) { return l.length; }));
+        var fs = Math.max(Math.min(baseFs, room6 / (0.9 * longest)), 9 * state.u);
+
+        var multi = lines.length > 1;
+        var lineH = fs * 1.08;
+        var firstY = r[1] - 9 - (lines.length - 1) * lineH;
+        /* a deep footprint reads best with its name inside, along the wall
+           that has no rooms against it (the bottom strip, because every
+           room label sits above its dot); a shallow one has no such strip,
+           so the name goes above the walls */
+        var deep = r[3] >= 120;
+        var insideY = r[1] + fs + 10;
+        var bottomY = r[1] + r[3] - 12;
+        var rows = deep
+          ? [bottomY, insideY, firstY, r[1] + r[3] + fs + 12]
+          : [firstY, insideY, r[1] + r[3] + fs + 12];
+        /* a place at the very top of the sheet has no room above it: keep
+           the name on the canvas rather than letting it hang off the edge */
+        rows = rows.filter(function (y) { return y - fs >= 2; });
+        var spots = [];
+        rows.forEach(function (y) {
+          if (multi) {
+            /* every line is left-aligned on the same x, so only the start
+               anchor makes sense */
+            spots.push({ x: r[0] + 4, a: 'start', y: y });
+          } else {
+            spots.push({ x: r[0] + 2, a: 'start', y: y });
+            spots.push({ x: r[0] + r[2] / 2, a: 'middle', y: y });
+            spots.push({ x: r[0] + r[2] - 2, a: 'end', y: y });
           }
         });
+
+        var name = el('text', {
+          x: spots[0].x, y: spots[0].y,
+          class: 'bld-name' + (open ? ' bld-name-open' : ''),
+          'text-anchor': spots[0].a,
+          'data-role': 'bld-name', 'data-bld': b
+        }, lines[0]);
+        name.style.fontSize = fs.toFixed(2) + 'px';
+        var tspans = [];
+        for (var i = 1; i < lines.length; i++) {
+          var t = el('tspan', { x: spots[0].x, dy: lineH }, lines[i]);
+          name.appendChild(t);
+          tspans.push(t);
+        }
+        g.appendChild(name);
+
+        function place(p) {
+          name.setAttribute('x', p.x);
+          name.setAttribute('y', p.y);
+          name.setAttribute('text-anchor', p.a);
+          tspans.forEach(function (t) { t.setAttribute('x', p.x); });
+        }
+
+        var best = null;
+        spots.forEach(function (p, i) {
+          place(p);
+          var box = bboxOf(name, 2);
+          if (!box) { return; }
+          /* rows are ordered by preference: above the footprint first */
+          var score = collisions(box) * 10 + i * 0.6;
+          if (!best || score < best.score) { best = { score: score, p: p, b: box }; }
+        });
+
         var nb = null;
-        if (bestName) {
-          name.setAttribute('x', bestName.p.x);
-          name.setAttribute('text-anchor', bestName.p.a);
-          nb = bestName.b;
+        if (best) {
+          place(best.p);
+          nb = best.b;
           reserve(nb);
         }
 
-        /* the code only goes in when the name leaves room for it */
+        /* the code only goes in when it clears the name */
         var code = el('text', {
-          x: r[0] + r[2] - 2, y: r[1] - 9, class: 'bld-code',
+          x: r[0] + r[2] - 2, y: (best ? best.p.y : r[1] - 9), class: 'bld-code',
           'text-anchor': 'end', 'data-role': 'bld-code', 'data-bld': b
         }, b);
         g.appendChild(code);
         var cb = bboxOf(code, 2);
-        if (cb && nb && hit(nb, cb)) { code.remove(); }
-        else { reserve(cb); }
+        /* the short code is the least important word on the plan: it only
+           appears when it clears the name and everything else already
+           placed on this floor */
+        if (cb && (collisions(cb) > 0 || (nb && hit(nb, cb)))) { code.remove(); }
+        else if (cb) { reserve(cb); }
       });
     }
 
@@ -563,6 +666,9 @@
       rooms.forEach(function (n) {
         var txt = labelFor(n, state.lang);
         if (!txt) { return; }
+        /* the pin already sits on this room and says "you are here" /
+           "destination"; its own label would only fight with the pin text */
+        if (state.route && (n.id === state.route.from || n.id === state.route.to)) { return; }
         var r = C.BUILDINGS[n.b].rect;
         placeLabel(g, txt, n, roomCandidates(n, C.SPINES[n.b]), {
           cls: 'room-label', role: 'room-label', node: n.id,
@@ -728,6 +834,7 @@
     }
 
     function render() {
+      ensureVisible();
       while (svg.firstChild) { svg.removeChild(svg.firstChild); }
       occ = [];
       /* layer order is the picture: paper, then what is under the walker,
@@ -765,6 +872,7 @@
       drawRooms(g, state.floor);
       drawPins(g, state.floor);
       drawMarker(g);
+      drawBuildingNames(g, state.floor);
       applyFocus();
 
       if (opts.onRender) { opts.onRender(routeFloors(), state.floor); }

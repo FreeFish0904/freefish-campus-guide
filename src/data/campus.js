@@ -4,8 +4,10 @@
  * ---------------------------------------------------------------------
  * Every building, floor plan, lift number and room code below was
  * invented for the AISC1000A (LA12) Group 16 project. It does NOT
- * describe a real campus. Replace this one file to describe your own
- * campus: keep the shape of the data and the rest of the app works.
+ * describe a real campus. It is kept in the repo because the test suite
+ * asserts exact routes on it, and because it is the smallest worked
+ * example of a campus spec: copy this file, keep the shape, and
+ * `src/data/graph.js` builds the rest.
  *
  * Geometry: the map viewBox is 1000 x 660 "map units", 1 unit = 0.32 m.
  * Every building keeps the same footprint on every floor, so a floor
@@ -20,13 +22,29 @@
 
   var LEVELS = ['LG1', 'G', '1F', '2F', '3F', '4F', '5F', '6F', '7F', '8F'];
 
+  /* `aliases` are the words a visitor actually types for the whole building,
+     `entry` is the node someone lands on when they name the building without
+     a floor. Both live here rather than in the NLU so a new campus stays
+     data-only. */
   var BUILDINGS = {
-    AT:  { short: 'AT',  names: { en: 'Academic Tower',    zh: '学术楼',       yue: '學術樓' },        rect: [330,  90, 210, 230] },
-    LIB: { short: 'LIB', names: { en: 'Library',           zh: '图书馆',       yue: '圖書館' },        rect: [ 80, 110, 190, 230] },
-    EA:  { short: 'EA',  names: { en: 'Engineering Annex', zh: '工程附楼',     yue: '工程附樓' },      rect: [620,  70, 190, 250] },
-    HUB: { short: 'HUB', names: { en: 'Student Hub',       zh: '学生活动中心', yue: '學生活動中心' },  rect: [350, 400, 200, 180] },
-    SPT: { short: 'SPT', names: { en: 'Sports Centre',     zh: '体育馆',       yue: '體育館' },        rect: [ 90, 400, 200, 160] },
-    RES: { short: 'RES', names: { en: 'Residence Hall',    zh: '宿舍楼',       yue: '宿舍樓' },        rect: [650, 400, 180, 200] }
+    AT:  { short: 'AT',  names: { en: 'Academic Tower',    zh: '学术楼',       yue: '學術樓' },        rect: [330,  90, 210, 230],
+           aliases: ['academic tower', 'academic', 'the tower', 'tower', '主楼', '教学主楼', '學術樓', '学术楼'],
+           entry: 'at-south' },
+    LIB: { short: 'LIB', names: { en: 'Library',           zh: '图书馆',       yue: '圖書館' },        rect: [ 80, 110, 190, 230],
+           aliases: ['library', 'the library', 'lib', '图书馆', '圖書館'],
+           entry: 'lib-entrance' },
+    EA:  { short: 'EA',  names: { en: 'Engineering Annex', zh: '工程附楼',     yue: '工程附樓' },      rect: [620,  70, 190, 250],
+           aliases: ['engineering annex', 'annex', 'engineering', 'ea', '工程附楼', '工程附樓'],
+           entry: null },
+    HUB: { short: 'HUB', names: { en: 'Student Hub',       zh: '学生活动中心', yue: '學生活動中心' },  rect: [350, 400, 200, 180],
+           aliases: ['student hub', 'hub', 'student centre', 'student center', '学生活动中心', '學生活動中心', '活动中心', '活動中心'],
+           entry: 'hub-lobby' },
+    SPT: { short: 'SPT', names: { en: 'Sports Centre',     zh: '体育馆',       yue: '體育館' },        rect: [ 90, 400, 200, 160],
+           aliases: ['sports centre', 'sports center', 'sports', 'sports complex', 'gym building', 'spt', '体育馆', '體育館'],
+           entry: 'spt-gym' },
+    RES: { short: 'RES', names: { en: 'Residence Hall',    zh: '宿舍楼',       yue: '宿舍樓' },        rect: [650, 400, 180, 200],
+           aliases: ['residence hall', 'residence', 'dorm', 'dormitory', 'hall', 'res', '宿舍楼', '宿舍樓', '宿舍'],
+           entry: 'res-lobby' }
   };
 
   /* Footprints. `rect` above stays the bounding box (labels are bounded by
@@ -227,170 +245,48 @@
     { kind: 'outdoor',   a: { b: 'HUB', f: 'G',  x: 550, y: 480 }, b: { b: 'RES', f: 'G',  x: 650, y: 480 } }
   ];
 
-  /* ---- build the graph ------------------------------------------------- */
-  var nodes = [], edges = [], nodeById = {}, byCoord = {};
-
-  function ckey(b, f, x, y) { return b + '|' + f + '|' + x + '|' + y; }
-
-  function addNode(b, f, x, y, props) {
-    var k = ckey(b, f, x, y);
-    if (byCoord[k]) {
-      var ex = byCoord[k];
-      if (props) { for (var p in props) { if (props.hasOwnProperty(p) && ex[p] === undefined) { ex[p] = props[p]; } } }
-      return ex;
-    }
-    var n = { id: (props && props.id) || (b + '-' + f + '-' + x + '-' + y),
-              b: b, f: f, x: x, y: y, kind: 'junction', poi: null,
-              names: null, aliases: [], core: null, coreKind: null, coreLabel: null, coreNames: null };
-    if (props) { for (var q in props) { if (props.hasOwnProperty(q)) { n[q] = props[q]; } } }
-    nodes.push(n); byCoord[k] = n; nodeById[n.id] = n;
-    return n;
-  }
-
-  function euclid(a, b) { var dx = a.x - b.x, dy = a.y - b.y; return Math.sqrt(dx * dx + dy * dy); }
-
-  function addEdge(a, b, kind, opts) {
-    opts = opts || {};
-    var metres = euclid(a, b) * M_PER_UNIT;
-    var sec = (opts.sec !== undefined) ? opts.sec : metres / WALK_SPEED;
-    var e = {
-      id: a.id + '>' + b.id,
-      a: a.id, b: b.id, kind: kind,
-      m: Math.round(metres * 10) / 10,
-      sec: Math.round(sec),
-      accessible: opts.accessible !== false,
-      core: opts.core || null
-    };
-    edges.push(e);
-    return e;
-  }
-
-  function spineNode(b, f, x) { return byCoord[ckey(b, f, x, SPINES[b].y)]; }
-
-  function nearestSpine(b, f, node) {
-    var sp = SPINES[b], best = null, bd = Infinity;
-    sp.xs.forEach(function (x) {
-      var s = spineNode(b, f, x);
-      if (!s) { return; }
-      var d = euclid(node, s);
-      if (d < bd) { bd = d; best = s; }
-    });
-    return best;
-  }
-
-  function endpoint(p) {
-    var n = byCoord[ckey(p.b, p.f, p.x, p.y)];
-    if (n) { return n; }
-    n = addNode(p.b, p.f, p.x, p.y, { kind: 'junction' });
-    var s = nearestSpine(p.b, p.f, n);
-    if (s) { addEdge(n, s, 'junction'); }
-    return n;
-  }
-
-  /* 1. horizontal spines - one per building per floor */
-  Object.keys(FLOORS).forEach(function (b) {
-    var sp = SPINES[b];
-    FLOORS[b].forEach(function (f) {
-      var prev = null;
-      sp.xs.forEach(function (x) {
-        var n = addNode(b, f, x, sp.y, { kind: 'spine' });
-        if (prev && prev !== n) { addEdge(prev, n, 'corridor'); }
-        prev = n;
-      });
-    });
-  });
-
-  /* 2. rooms hang off the nearest spine node */
-  ROOMS.forEach(function (r) {
-    var n = addNode(r.b, r.f, r.x, r.y, {
-      id: r.id, kind: 'room', poi: r.poi, names: r.names, aliases: r.aliases, short: r.short
-    });
-    var s = nearestSpine(r.b, r.f, n);
-    if (s) { addEdge(n, s, 'room'); }
-  });
-
-  /* 3. vertical cores (lifts / stairs / escalator)
-        Lifts connect every pair of served floors directly, so the waiting
-        time is counted once per ride instead of once per floor. */
-  CORES.forEach(function (c) {
-    var floorNodes = c.floors.map(function (f) {
-      var n = addNode(c.b, f, c.x, c.y, { kind: 'core' });
-      n.kind = 'core';
-      n.core = c.id;
-      n.coreKind = c.kind;
-      n.coreLabel = (c.label === undefined) ? null : c.label;
-      n.coreNames = c.names;
-      return n;
-    });
-
-    var i, j;
-    if (c.kind === 'lift') {
-      for (i = 0; i < floorNodes.length; i++) {
-        for (j = i + 1; j < floorNodes.length; j++) {
-          var df = Math.abs(LEVELS.indexOf(c.floors[j]) - LEVELS.indexOf(c.floors[i]));
-          addEdge(floorNodes[i], floorNodes[j], 'lift', { sec: c.wait + c.perFloor * df, core: c.id });
-        }
+  /* ---- the spec ---------------------------------------------------------
+     Everything above is data. `buildCampus` (src/data/graph.js) turns it
+     into nodes, edges and the lookups the rest of the app uses, so the
+     same renderer, router and NLU run on this campus and on HKUST. */
+  var SPEC = {
+    id: 'fust-demo',
+    meta: {
+      name: { en: 'Freefish University of Science and Technology',
+              zh: 'Freefish 科技大学', yue: 'Freefish 科技大學' },
+      note: { en: 'Fictional campus built for AISC1000A (LA12) Group 16.',
+              zh: 'AISC1000A（LA12）第 16 组的虚构校园数据。',
+              yue: 'AISC1000A（LA12）第 16 組嘅虛構校園數據。' },
+      dataSource: { en: 'fictional', zh: '虚构', yue: '虛構' },
+      geometry: 'schematic',
+      /* the three origins / five destinations offered before the user has
+         typed anything - the demo's favourite teaching examples */
+      popular: {
+        origin: ['at-atrium', 'lib-entrance', 'hub-lobby'],
+        dest: ['at-lt1', 'lib-silent', 'hub-canteen', 'ea-robot', 'res-lobby']
       }
-    } else {
-      for (i = 1; i < floorNodes.length; i++) {
-        var df2 = Math.abs(LEVELS.indexOf(c.floors[i]) - LEVELS.indexOf(c.floors[i - 1]));
-        if (c.kind === 'stairs') {
-          addEdge(floorNodes[i - 1], floorNodes[i], 'stairs', { sec: STAIR_SEC_PER_FLOOR * df2, accessible: false, core: c.id });
-        } else if (c.kind === 'escalator') {
-          addEdge(floorNodes[i - 1], floorNodes[i], 'escalator', { sec: (c.sec || 22) * df2, accessible: false, core: c.id });
-        }
-      }
-    }
-  });
-
-  /* 4. building-to-building links */
-  LINKS.forEach(function (l) {
-    var A = endpoint(l.a), B = endpoint(l.b);
-    if (A && B && A !== B) { addEdge(A, B, l.kind); }
-  });
-
-  /* ---- adjacency + helpers --------------------------------------------- */
-  var adjacency = {};
-  nodes.forEach(function (n) { adjacency[n.id] = []; });
-  edges.forEach(function (e) {
-    adjacency[e.a].push({ to: e.b, edge: e });
-    adjacency[e.b].push({ to: e.a, edge: e });
-  });
-
-  var coreById = {};
-  CORES.forEach(function (c) { coreById[c.id] = c; });
-
-  globalThis.FUST = globalThis.FUST || {};
-  globalThis.FUST.Campus = {
+    },
     M_PER_UNIT: M_PER_UNIT,
     WALK_SPEED: WALK_SPEED,
+    STAIR_SEC_PER_FLOOR: STAIR_SEC_PER_FLOOR,
     LEVELS: LEVELS,
     BUILDINGS: BUILDINGS,
     OUTLINES: OUTLINES,
-    outlineOf: function (b) { return OUTLINES[b] || null; },
     FLOORS: FLOORS,
     SPINES: SPINES,
     CORES: CORES,
     ROOMS: ROOMS,
     LINKS: LINKS,
-    nodes: nodes,
-    edges: edges,
-    adjacency: adjacency,
-    nodeById: nodeById,
-    coreById: coreById,
-    levelIndex: function (f) { return LEVELS.indexOf(f); },
-    node: function (id) { return nodeById[id] || null; },
-    buildingsOn: function (f) {
-      return Object.keys(FLOORS).filter(function (b) { return FLOORS[b].indexOf(f) >= 0; });
-    },
-    roomsOn: function (b, f) {
-      return nodes.filter(function (n) { return n.kind === 'room' && n.b === b && n.f === f; });
-    },
-    nodesOn: function (f) {
-      return nodes.filter(function (n) { return n.f === f; });
-    },
-    poiNodes: function (poi) {
-      return nodes.filter(function (n) { return n.poi === poi; });
-    }
+
+    /* Deliberate facts the data check asserts, so a careless edit to the
+       lift table cannot quietly delete the demo's whole point. */
+    QUIRKS: [
+      { kind: 'core-absent', core: 'L2', b: 'AT', f: 'LG1',
+        why: 'Lift 2 is the fast tower lift and skips LG1, which is what forces the two-lift route' }
+    ]
   };
+
+  globalThis.FUST = globalThis.FUST || {};
+  globalThis.FUST.CampusDemo = globalThis.FUST.buildCampus(SPEC);
+  globalThis.FUST.Campus = globalThis.FUST.CampusDemo;
 })();

@@ -4,6 +4,12 @@ Type any of these into the box at the bottom left (or tap the matching
 card above it). Numbers were taken from the current build; times are the
 planner's own estimate, not a stopwatch.
 
+> These five are written against the **fictional demo campus** - append
+> `&data=demo` to the URL to load it. The app ships on the real HKUST data;
+> its five questions are the cards on screen, e.g. *Library entrance to the
+> LG1 Canteen* and *LG7 canteen to LT-A* (two lift banks, because the LG bank
+> stops at G/F).
+
 ---
 
 ## 1. Cross-building, two lifts and a skybridge

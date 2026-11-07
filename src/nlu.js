@@ -104,25 +104,14 @@
     if (n.kind === 'room') { registerEntity(n, 'room'); }
   });
 
-  /* Building aliases. Two-letter codes (AT, EA...) are only accepted when
-     the user actually typed them in capitals, otherwise "I am at the
-     Atrium" would be read as the Academic Tower. */
-  var BUILDING_ALIASES = {
-    AT:  ['academic tower', 'academic', 'the tower', 'tower', '主楼', '教学主楼', '學術樓', '学术楼'],
-    LIB: ['library', 'the library', 'lib', '图书馆', '圖書館'],
-    EA:  ['engineering annex', 'annex', 'engineering', 'ea', '工程附楼', '工程附樓'],
-    HUB: ['student hub', 'hub', 'student centre', 'student center', 'hub', '学生活动中心', '學生活動中心', '活动中心', '活動中心'],
-    SPT: ['sports centre', 'sports center', 'sports', 'sports complex', 'gym building', 'spt', '体育馆', '體育館'],
-    RES: ['residence hall', 'residence', 'dorm', 'dormitory', 'hall', 'res', '宿舍楼', '宿舍樓', '宿舍']
-  };
-
-  var BUILDING_ENTRY = {
-    AT: 'at-south', LIB: 'lib-entrance', HUB: 'hub-lobby',
-    SPT: 'spt-gym', RES: 'res-lobby', EA: null
-  };
-
-  Object.keys(BUILDING_ALIASES).forEach(function (b) {
-    var pseudo = { id: 'B-' + b, kind: 'building', names: C.BUILDINGS[b].names, aliases: BUILDING_ALIASES[b] };
+  /* Building aliases live in the campus data (BUILDINGS[b].aliases) so a
+     new campus is data-only. Two-letter codes (AT, EA...) are only accepted
+     when the user actually typed them in capitals, otherwise "I am at the
+     Atrium" would be read as the Academic Tower - that rule lives in
+     parse(), the aliases themselves are just word lists. */
+  Object.keys(C.BUILDINGS).forEach(function (b) {
+    var spec = C.BUILDINGS[b] || {};
+    var pseudo = { id: 'B-' + b, kind: 'building', names: spec.names, aliases: spec.aliases || [] };
     registerEntity(pseudo, 'building');
   });
 
@@ -175,6 +164,10 @@
   fa('lg1', 'LG1'); fa('lg 1', 'LG1'); fa('b1', 'LG1'); fa('basement 1', 'LG1');
   fa('lower ground', 'LG1'); fa('lg', 'LG1'); fa('地库', 'LG1'); fa('地庫', 'LG1');
   fa('地库1', 'LG1'); fa('地庫1', 'LG1'); fa('负一层', 'LG1'); fa('負一層', 'LG1');
+  /* HKUST splits its lower concourse into odd levels: LG1, LG3, LG5, LG7 */
+  fa('lg3', 'LG3'); fa('lg 3', 'LG3'); fa('地库3', 'LG3'); fa('地庫3', 'LG3');
+  fa('lg5', 'LG5'); fa('lg 5', 'LG5'); fa('地库5', 'LG5'); fa('地庫5', 'LG5');
+  fa('lg7', 'LG7'); fa('lg 7', 'LG7'); fa('地库7', 'LG7'); fa('地庫7', 'LG7');
   fa('g', 'G'); fa('gf', 'G'); fa('g f', 'G'); fa('ground', 'G'); fa('ground floor', 'G');
   fa('ug', 'G'); fa('ug f', 'G'); fa('地下', 'G'); fa('地面', 'G'); fa('大堂层', 'G'); fa('大堂層', 'G');
 
@@ -348,8 +341,8 @@
   function entityNode(ent) {
     if (ent.kind === 'building') {
       var b = ent.id.slice(2);
-      var entry = BUILDING_ENTRY[b];
-      if (entry && C.node(entry)) { return C.node(entry); }
+      var spec = C.BUILDINGS[b] || {};
+      if (spec.entry && C.node(spec.entry)) { return C.node(spec.entry); }
       return buildingFloorNode(b, C.FLOORS[b][0]);
     }
     return C.node(ent.id);
@@ -448,10 +441,10 @@
     return 'en';
   }
 
-  var POPULAR = {
-    origin: ['at-atrium', 'lib-entrance', 'hub-lobby'],
-    dest: ['at-lt1', 'lib-silent', 'hub-canteen', 'ea-robot', 'res-lobby']
-  };
+  /* Suggested origins/destinations for the empty state. The campus data
+     supplies them (`meta.popular`) because only the campus knows which
+     places are the useful ones for a newcomer. */
+  var POPULAR = (C.meta && C.meta.popular) || { origin: [], dest: [] };
 
   function parse(text) {
     var rawIn = String(text === undefined || text === null ? '' : text);
