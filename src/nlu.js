@@ -91,6 +91,16 @@
       if (forms.indexOf(nf) < 0) { forms.push(nf); }
     });
     if (!forms.length) { return; }
+    /* Chinese is written without spaces: 去LG1食堂 has to match the alias
+       "lg1 食堂" just as 去 LG1 食堂 does. A compact copy of every form that
+       contains a space costs nothing and only ever adds a match. */
+    var compact = [];
+    forms.forEach(function (f) {
+      if (f.indexOf(' ') < 0) { return; }
+      var c = f.replace(/ /g, '');
+      if (forms.indexOf(c) < 0 && compact.indexOf(c) < 0) { compact.push(c); }
+    });
+    forms = forms.concat(compact);
     var idx = ENTITIES.length;
     ENTITIES.push({ id: node.id, kind: kind, forms: forms, node: node });
     forms.forEach(function (f) {

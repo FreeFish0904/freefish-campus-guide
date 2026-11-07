@@ -46,14 +46,16 @@ node tests/check_bundle.js         # 103 checks: fresh, sandbox-safe, byte-ident
 
 | file | size | what it is |
 |---|---|---|
-| `dist/dify-code-node.js` | 81 KB | **paste this into the Code node** — the engine behind `function main(inputs)` |
-| `dist/dify-engine.js` | 103 KB | the same code unwrapped, for `node dist/dify-engine.js` debugging |
-| `dist/dify-engine.min.js` | 73 KB | comments and indentation stripped, if a box complains about size |
+| `dist/dify-code-node.js` | 82 KB | **paste this into the Code node** — the engine behind `function main(inputs)` |
+| `dist/dify-engine.js` | 104 KB | the same code unwrapped, for `node dist/dify-engine.js` debugging |
+| `dist/dify-engine.min.js` | 74 KB | comments and indentation stripped, if a box complains about size |
 
 The bundle is the seven browser scripts in `index.html` load order plus
-`tools/engine_api.js`, hashed into `Engine.version` (currently
-`46b5123a3a0c`). `tests/check_bundle.js` rebuilds it and fails if `dist/` is
-stale, so the file you paste is always the file the tests passed.
+`tools/engine_api.js`, hashed into `Engine.version` (printed by the build and
+on the first line of `dist/dify-code-node.js`; `tests/check_bundle.js` fails if
+that hash is not the hash of the sources it just hashed). `tests/check_bundle.js`
+also rebuilds the files and fails if `dist/` is stale, so the file you paste is
+always the file the tests passed.
 
 What the Code node returns for
 `library entrance to lg 1 canteen` (this exact text is what the Answer node
@@ -73,7 +75,7 @@ prints):
 
 ## 2. Phase 0 — the five-minute smoke test
 
-The one thing that could still go wrong is Dify refusing an 81 KB Code node.
+The one thing that could still go wrong is Dify refusing an 82 KB Code node.
 Find out now, not after wiring six nodes.
 
 1. <https://cloud.dify.ai> → **Studio** → **Create from Blank** → **Chatflow**.
@@ -106,7 +108,7 @@ Find out now, not after wiring six nodes.
 
 * *(a)* it worked → nothing to do, keep going;
 * *(b)* Dify rejected the paste (too large / error shown) → send me the exact
-  message; the fallback is `dist/dify-engine.min.js` (73 KB) in the same
+  message; the fallback is `dist/dify-engine.min.js` (74 KB) in the same
   wrapper, and if that also fails, plan B2 (a 40-line serverless
   `api/route.mjs` + an HTTP Request node) — the engine is already known to run
   headless in ~11 ms;
@@ -265,12 +267,13 @@ in the same conversation.
    opening message and the suggested questions:
 
    opening: `Ask me how to get anywhere on campus - EN / 中文 / 粵語.`
-   suggested questions (one per line):
-   `I am at the library entrance, how do I get to LG1 canteen?`
-   `Where is the nearest restroom from the piazza?`
-   `LG7 食堂怎么去 3 楼教室`
-   `圖書館去 LG1 飯堂點行`
-   `What's open for dinner after 8pm?`
+   suggested questions (one per line, all verified against the engine):
+   `I am at the library entrance, how do I get to LG1 canteen?` — 3 min 12 s
+   `圖書館去 LG1 飯堂點行` — 3 min 12 s, no lift
+   `LG7 食堂去 LG1 食堂 不想走楼梯` — 3 min 01 s, one lift
+   `图书馆去游泳池` — 10 min 54 s, two lifts
+   `What's open for dinner after 8pm?` — the model, from FACTS
+
 
 2. **Access**: Site (public link, no login) is what a course submission wants.
    Copy the `https://udify.app/chat/…` link — that is the single link.
@@ -291,7 +294,7 @@ in the same conversation.
 | Code node network | blocked | the engine makes no calls — that is why it can live in a node at all |
 | Sandbox plan | ~200 messages / 5 apps | one app; the engine path costs no tokens, so previews are cheap |
 | DeepSeek cost | a few cents | the model only runs on the FALSE branch |
-| Bundle size | 81 KB pasted | if a box refuses it, use `dist/dify-engine.min.js` (73 KB) in the same wrapper |
+| Bundle size | 82 KB pasted | if a box refuses it, use `dist/dify-engine.min.js` (74 KB) in the same wrapper |
 
 Plan B2, only if the paste is refused outright: `api/route.mjs` (about 40
 lines around the same bundle, `POST {query}` → JSON) on Vercel or Cloudflare,
@@ -309,7 +312,7 @@ demo; two are the ones that prove the architecture.
 |---|---|---|
 | 1 | `I am at the library entrance, how do I get to LG1 canteen?` | 3 min 12 s · 260 m · no lift · Step-free, three numbered steps, arrival line — identical to the browser app |
 | 2 | `from LG7 canteen to a 3F classroom, no stairs` | two lift banks, no stairs or escalator in the steps |
-| 3 | `圖書館去 LG1 飯堂點行` | Chinese/Cantonese labels, same route |
+| 3 | `圖書館去 LG1 飯堂點行` | 3 min 12 s · 圖書館入口 → LG1 食堂（美心）, no lift, Chinese labels |
 | 4 | `where is the nearest toilet from the piazza?` | "Nearest restroom to Entrance Piazza" + a walk |
 | 5 | `LG5 麦当劳考试周通宵吗` | LLM answers from FACTS, no invented route |
 | 6 | `how long does it take` | asks for both places, invents no number |
@@ -318,6 +321,17 @@ demo; two are the ones that prove the architecture.
 
 Check 7 is the one to show in the report: it is the difference between "a
 chatbot that talks about a router" and "a router that a chatbot can talk to".
+
+### What the rules still get wrong (say this before a grader finds it)
+
+* A floor plus a *building*, not a room — "怎么去 3 楼教室" — resolves to the
+  3/F corridor node, because no room is called "教室". The route is right to
+  the floor and the last 20 m are up to the reader.
+* A bare `食堂` with no floor picks LG7 (it is registered first). With the
+  floor it is unambiguous, with or without a space: `去LG1食堂` works since the
+  compact-alias fix in `src/nlu.js`.
+* Both are rule-table gaps, not router bugs — which is exactly the class of
+  sentence the LLM branch is for, and the reason `Engine.suggest()` exists.
 
 ## Appendix B — why the engine lives in a Code node, not in the prompt
 

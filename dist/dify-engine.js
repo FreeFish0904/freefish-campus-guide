@@ -4,7 +4,7 @@
  *   node tools/bundle_engine.js
  *
  * Sources (in load order): src/data/graph.js, src/data/campus.ust.js, src/data/active.js, src/i18n.js, src/router.js, src/steps.js, src/nlu.js, tools/engine_api.js
- * Engine version: 46b5123a3a0c
+ * Engine version: 1639a6af52f9
  *
  * Standalone: run it and it hands you globalThis.Engine (and returns it).
  * For a Dify Code node use dist/dify-code-node.js instead - same code,
@@ -492,7 +492,7 @@
       /* Academic Building: the LG concourse (the canteens live down here) */
       R('ust-lg7-canteen', 'ACA', 'LG7', 480, 365, 'food',
         'LG7 Canteen', 'LG7 食堂', 'LG7 食堂',
-        ['lg7 canteen', 'lg 7 canteen', 'lg7', 'lg 7', 'canteen', 'lg7 食堂', 'lg 7 食堂', '科大全餐', '全餐', '食堂'], 'LG7 Canteen', true),
+        ['lg7 canteen', 'lg 7 canteen', 'lg7', 'lg 7', 'canteen', 'lg7 食堂', 'lg 7 食堂', 'lg7 飯堂', '科大全餐', '全餐', '食堂'], 'LG7 Canteen', true),
       R('ust-lg7-wc', 'ACA', 'LG7', 630, 365, 'restroom',
         'Restroom (LG7)', '洗手间（LG7）', '洗手間（LG7）', ['toilet', '洗手间', '洗手間'], 'WC', false),
 
@@ -513,7 +513,7 @@
 
       R('ust-lg1-canteen', 'ACA', 'LG1', 480, 365, 'food',
         "LG1 Canteen (Maxim's)", 'LG1 食堂（美心）', 'LG1 食堂（美心）',
-        ['lg1 canteen', 'lg 1 canteen', 'canteen', 'maxims', 'maxim', 'lg1 食堂', 'lg 1 食堂', '美心', '食堂', '烧鸭'], 'LG1 Canteen', true),
+        ['lg1 canteen', 'lg 1 canteen', 'canteen', 'maxims', 'maxim', 'lg1 食堂', 'lg 1 食堂', 'lg1 飯堂', '美心', '食堂', '烧鸭'], 'LG1 Canteen', true),
       R('ust-lg1-parknshop', 'ACA', 'LG1', 560, 295, 'service',
         'ParknShop Supermarket', '百佳超市', '百佳超市',
         ['parknshop', 'park n shop', 'supermarket', '百佳', '超市'], 'ParknShop', false),
@@ -1445,6 +1445,16 @@
         if (forms.indexOf(nf) < 0) { forms.push(nf); }
       });
       if (!forms.length) { return; }
+      /* Chinese is written without spaces: 去LG1食堂 has to match the alias
+         "lg1 食堂" just as 去 LG1 食堂 does. A compact copy of every form that
+         contains a space costs nothing and only ever adds a match. */
+      var compact = [];
+      forms.forEach(function (f) {
+        if (f.indexOf(' ') < 0) { return; }
+        var c = f.replace(/ /g, '');
+        if (forms.indexOf(c) < 0 && compact.indexOf(c) < 0) { compact.push(c); }
+      });
+      forms = forms.concat(compact);
       var idx = ENTITIES.length;
       ENTITIES.push({ id: node.id, kind: kind, forms: forms, node: node });
       forms.forEach(function (f) {
@@ -1927,7 +1937,7 @@
     var S = F.Steps;
 
     /* replaced by tools/bundle_engine.js at build time */
-    var VERSION = '46b5123a3a0c';
+    var VERSION = '1639a6af52f9';
 
     /* ---- small helpers -------------------------------------------------- */
 

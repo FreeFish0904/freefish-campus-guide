@@ -260,7 +260,36 @@ fictional, so the entry point is removed rather than faked.
   reported, not hidden).
 - Screenshots: checklist drawer desktop EN/ZH and at 390x844.
 
-## Still weak
+## Dify build pass (2026-11-08)
+
+The same engine now runs in a Dify Code node (`docs/DIFY.md`). What was added
+and what it caught:
+
+- `tools/bundle_engine.js` + `tools/engine_api.js` -> `dist/`. The bundle is the
+  seven browser scripts in `index.html` order, so the Dify app cannot drift
+  from the web app; `Engine.version` is a hash of exactly those files.
+- `tests/check_bundle.js`: 103 checks - freshness of `dist/`, no
+  `document`/`window`/`require`/`process`/`fetch` in the minified code, JSON
+  nesting <= 5 (a Dify output limit), the twelve golden questions byte-identical
+  to a card rendered independently here, and the generated `function main(inputs)`
+  wrapper called the way Dify calls it.
+- `tests/browser_check.py` runs it first, so one command still covers everything.
+
+### Bugs found and fixed in this pass
+
+- **A POI word beat an explicit destination.** "I am at the library entrance,
+  and then I pick LG1 canteen" produced *nearest entrance to the library
+  entrance* (0 s) instead of the walk: `NLU.parse` reads "entrance" as a POI, so
+  `intent` became `nearest`, and that outranked the destination carried from the
+  previous turn. `Engine.answer` now lets an explicit `destId` win over a POI
+  word. Caught by the `multi-turn` check.
+- **Chinese written without spaces missed the aliases.** `去LG1食堂` resolved to
+  **LG7** canteen (247 s) because every alias is stored as `lg1 食堂` with a
+  space. `registerEntity` now also indexes a compact copy of any form that
+  contains a space, and the two canteens learned their 飯堂 spellings. 192 s,
+  the right room. All 641 assertions still pass - the change only ever adds a
+  match.
+
 
 Two data sets to keep in step; 47 places still marked 未核实; constant walking
 speed and lift waits; no voice input. The checklist covers the newcomer guide,
