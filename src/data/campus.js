@@ -29,6 +29,31 @@
     RES: { short: 'RES', names: { en: 'Residence Hall',    zh: '宿舍楼',       yue: '宿舍樓' },        rect: [650, 400, 180, 200] }
   };
 
+  /* Footprints. `rect` above stays the bounding box (labels are bounded by
+     it, and simple buildings are still drawn straight from it); `outline`
+     is the real thing the renderer draws when it is present - a closed
+     polygon in the same map units. Buildings are never plain rectangles
+     in real life: they step, chamfer and wrap around a plaza, and drawing
+     that shape is most of what makes a plan read as a place. */
+  var OUTLINES = {
+    /* stepped north wing, chamfered south-east corner */
+    AT:  [[330, 110], [372, 90], [455, 90], [455, 130], [540, 130],
+          [540, 296], [514, 320], [330, 320]],
+    /* rounded stack with the entrance cut back at the south-west */
+    LIB: [[80, 122], [92, 110], [258, 110], [270, 122], [270, 340],
+          [152, 340], [152, 320], [80, 320]],
+    /* tower on a wider base */
+    EA:  [[620, 70], [782, 70], [782, 96], [810, 96], [810, 302],
+          [790, 320], [620, 320]],
+    /* plaza cut into the north-west corner, chamfer at the south-east */
+    HUB: [[350, 422], [422, 400], [550, 400], [550, 558], [520, 580], [350, 580]],
+    /* hall with a rounded east end */
+    SPT: [[90, 422], [112, 400], [268, 400], [290, 422], [290, 538],
+          [268, 560], [90, 560]],
+    /* two blocks, the east one set back */
+    RES: [[650, 400], [760, 400], [760, 428], [830, 428], [830, 600], [650, 600]]
+  };
+
   var FLOORS = {
     AT:  ['LG1', 'G', '1F', '2F', '3F', '4F'],
     LIB: ['G', '1F', '2F'],
@@ -341,6 +366,8 @@
     WALK_SPEED: WALK_SPEED,
     LEVELS: LEVELS,
     BUILDINGS: BUILDINGS,
+    OUTLINES: OUTLINES,
+    outlineOf: function (b) { return OUTLINES[b] || null; },
     FLOORS: FLOORS,
     SPINES: SPINES,
     CORES: CORES,

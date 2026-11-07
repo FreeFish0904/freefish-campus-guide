@@ -28,8 +28,9 @@ off.
   and escalators, plus a side-by-side time comparison with the fastest route.
 - **Explains the odd bits** — "Lift 2 does not serve LG1", "Lift 4 is the
   only step-free way into the Annex", "the Library has no ground-level door".
-- **Draws the answer** — SVG floor plan per level, route highlighted, floors
-  switching automatically during the walkthrough animation.
+- **Draws the answer** — a floor plan per level with real building footprints,
+  category-coloured places, zoom/pan and three levels of detail, route
+  highlighted, floors switching automatically during the walkthrough animation.
 - **Re-translates live** — switching language re-renders the route that is
   already on screen instead of starting over.
 
@@ -66,6 +67,7 @@ index.html            one page, eight <script> tags
 styles.css            all styling, including the SVG floor plan
 src/data/campus.js    the campus: buildings, floors, rooms, lifts, links
 src/data/scenarios.js the five demo queries, in three languages
+src/icons.js          POI categories + the seven inline SVG icons
 src/i18n.js           every UI string in EN / 中文 / 粵語
 src/nlu.js            normalisation, segmentation, entity matching, typos
 src/router.js         Dijkstra, step-free filter, nearest-POI search
@@ -76,13 +78,21 @@ tests/                graph checker, 49-case suite, screenshot script
 docs/                 test log, sample queries, deploy guide, screenshots
 ```
 
-**Data model.** `campus.js` declares buildings with a fixed footprint, one
-horizontal *spine* per building, a list of rooms that hang off the nearest
-spine node, vertical *cores* (lifts/stairs) with the floors they serve, and a
-handful of building-to-building links. Everything else — the 214-node graph,
-the 300 edges, walking distances — is derived from those declarations, so
-timetables and maps can never disagree. Swap this one file to describe a
-different campus.
+**Data model.** `campus.js` declares buildings with a footprint (`rect` for the
+bounding box, optional `outline` polygon for the real shape), one horizontal
+*spine* per building, a list of rooms that hang off the nearest spine node,
+vertical *cores* (lifts/stairs) with the floors they serve, and a handful of
+building-to-building links. Everything else — the 214-node graph, the 300 edges,
+walking distances — is derived from those declarations, so timetables and maps
+can never disagree. Swap this one file to describe a different campus.
+
+**The plan.** `map.js` draws one floor at a time in four layers: paper, walls and
+corridors, the route, then rooms and words. Labels are placed by measuring each
+one with `getBBox()` against everything already on the floor (route, cores,
+other labels, the walls of its building) instead of using fixed offsets. Zoom is
+a window over the same 1000x660 map units, and marker/type sizes are divided by
+`--u` (units per CSS pixel) so text stays the same size on screen while the
+geometry grows: three levels of detail pick which labels are worth drawing.
 
 **Cost model.** Walking is `metres / 1.35 m/s`; stairs are 16 s per floor;
 a lift ride is `wait + per-floor` with the wait charged once per ride; an
@@ -104,9 +114,22 @@ python3 tests/screenshots.py  # regenerate docs/screenshots
 box, the route line, the canvas edge, or the walls of its own building. Add
 `?lang=en&floor=4F&dump` to the URL to print the computed boxes instead.
 
-Current status: **49 cases, 566 assertions, 0 failures**. Details and the
+Current status: **49 cases, 599 assertions, 0 failures**. Details and the
 bugs that were found on the way are in
 [`docs/TEST_LOG.md`](docs/TEST_LOG.md).
+
+## Map controls
+
+| | |
+|---|---|
+| Wheel | zoom is anchored on the cursor; drag to pan |
+| Double-click | zoom in on that spot |
+| − / + / ⤢ | zoom out, zoom in, fit the campus back in the pane |
+| Legend chips | click a category to fade everything else |
+| `?zoom=2.2` | deep link that opens the plan at a reading distance |
+
+Zooming changes how much is drawn, not just how big: below 0.92× only building
+names survive, 0.92–1.7× adds room names, above 1.7× adds category icons.
 
 ## Screenshots
 
@@ -124,7 +147,10 @@ bugs that were found on the way are in
 - Lift waiting times, walking speed and floor heights are constants, not live
   data, so ETAs are estimates.
 - No voice input, no turn-by-turn GPS, no live lift status.
-- The floor plan is schematic: it shows topology, not surveyed geometry.
+- The floor plan is schematic: it shows topology, not surveyed geometry. The
+  footprints are plausible polygons, not survey data.
+- Two-finger pinch is not wired up yet: on a phone the map pans with one finger
+  and zooms with the ± buttons.
 
 ## Deploying
 

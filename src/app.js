@@ -511,6 +511,14 @@
     if (q) { ask(q); }
     var f = params.get('floor');
     if (f && C.LEVELS.indexOf(f) >= 0 && state.map) { state.map.setFloor(f); }
+    /* ?zoom=2.2 is for screenshots and manual checks: it opens the map at
+       a reading distance instead of the fitted overview */
+    var z = parseFloat(params.get('zoom'));
+    if (state.map && z > 0 && Math.abs(z - state.map.zoom()) > 0.02) {
+      for (var i = 0; i < 10 && state.map.zoom() < z - 0.02; i++) { state.map.zoomIn(); }
+      for (i = 0; i < 10 && state.map.zoom() > z + 0.02; i++) { state.map.zoomOut(); }
+      state.map.setFloor(state.map.getFloor());
+    }
   }
 
   function bind() {

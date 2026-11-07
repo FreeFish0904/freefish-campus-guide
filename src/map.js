@@ -7,8 +7,27 @@
 
   var C = globalThis.FUST.Campus;
   var I = globalThis.FUST.I18N;
+  var ICON = globalThis.FUST.Icons || {
+    catOf: function () { return 'facility'; },
+    CATS: [],
+    defs: null
+  };
 
   var NS = 'http://www.w3.org/2000/svg';
+
+  /* the world the data is drawn in - zooming moves a window over it, it
+     never rescales the data */
+  var WORLD = { x: 0, y: 0, w: 1000, h: 660 };
+  var MIN_ZOOM = 0.7;
+  var MAX_ZOOM = 4.5;
+
+  function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+  /* A plan is read at three distances: "which building is that", "what is
+     in this building", "which door". Text that is right at one distance is
+     noise at another, so the renderer draws a different label set per
+     level instead of showing everything and hoping. */
+  function lodFor(scale) { return scale < 0.92 ? 'far' : (scale < 1.7 ? 'mid' : 'near'); }
 
   function el(name, attrs, text) {
     var e = document.createElementNS(NS, name);
@@ -84,8 +103,108 @@
       steps: [],
       marker: null,
       timer: null,
-      activeStep: -1
+      activeStep: -1,
+      view: { x: WORLD.x, y: WORLD.y, w: WORLD.w, h: WORLD.h },
+      lod: 'mid',
+      focus: null,
+      userZoom: false
     };
+
+    /* ---- viewport ------------------------------------------------------
+       The world is 1000x660 map units; the view is the window onto it.
+       Zoom keeps the point under the cursor fixed - that is the whole
+       trick to a map that does not feel seasick. */
+    function elementBox() {
+      var r = svg.getBoundingClientRect();
+      return { w: r.width || WORLD.w, h: r.height || WORLD.h };
+    }
+
+    function applyView() {
+      var v = state.view;
+      svg.setAttribute('viewBox', v.x.toFixed(2) + ' ' + v.y.toFixed(2) + ' ' +
+        v.w.toFixed(2) + ' ' + v.h.toFixed(2));
+      var lod = lodFor(WORLD.w / v.w);
+      svg.setAttribute('data-zoom', lod);
+      var changed = lod !== state.lod;
+      state.lod = lod;
+      return changed;
+    }
+
+    /* the world is 1000x660, but the campus only fills part of it: fit the
+       footprints (plus a margin for the names above them) rather than the
+       whole world, otherwise the buildings are drawn 25% too small */
+    function contentBox() {
+      var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      Object.keys(C.BUILDINGS).forEach(function (b) {
+        var r = C.BUILDINGS[b].rect;
+        x0 = Math.min(x0, r[0]); y0 = Math.min(y0, r[1]);
+        x1 = Math.max(x1, r[0] + r[2]); y1 = Math.max(y1, r[1] + r[3]);
+      });
+      return { x: x0 - 26, y: y0 - 38, w: (x1 - x0) + 52, h: (y1 - y0) + 66 };
+    }
+
+    /* fill the pane with the campus, keeping its aspect ratio so nothing
+       is cropped - the leftover strip stays paper, not white */
+    function fitView() {
+      var box = elementBox();
+      var ar = box.w / box.h;
+      var c = contentBox();
+      var w = c.w, h = c.h;
+      if (w / h < ar) { w = h * ar; } else { h = w / ar; }
+      state.view = {
+        x: c.x + (c.w - w) / 2,
+        y: c.y + (c.h - h) / 2,
+        w: w, h: h
+      };
+      state.userZoom = false;
+      return applyView();
+    }
+
+    function toWorld(cx, cy) {
+      var m = svg.getScreenCTM();
+      if (!m) { return { x: WORLD.x + WORLD.w / 2, y: WORLD.y + WORLD.h / 2 }; }
+      var p = svg.createSVGPoint();
+      p.x = cx; p.y = cy;
+      var q = p.matrixTransform(m.inverse());
+      return { x: q.x, y: q.y };
+    }
+
+    function zoomAt(pt, factor) {
+      var v = state.view;
+      var z = clamp((WORLD.w / v.w) * factor, MIN_ZOOM, MAX_ZOOM);
+      var nw = WORLD.w / z;
+      var nh = nw * (v.h / v.w);
+      var kx = v.w ? (pt.x - v.x) / v.w : 0.5;
+      var ky = v.h ? (pt.y - v.y) / v.h : 0.5;
+      var nx = pt.x - kx * nw;
+      var ny = pt.y - ky * nh;
+      /* the window may reach a strip of paper around the campus, not the
+         other side of the world */
+      var pad = 260;
+      if (nw < WORLD.w + pad * 2) {
+        nx = clamp(nx, WORLD.x - pad, WORLD.x + WORLD.w + pad - nw);
+      }
+      if (nh < WORLD.h + pad * 2) {
+        ny = clamp(ny, WORLD.y - pad, WORLD.y + WORLD.h + pad - nh);
+      }
+      state.view = { x: nx, y: ny, w: nw, h: nh };
+      state.userZoom = true;
+      if (applyView()) { render(); } else { scheduleRender(); }
+    }
+
+    function zoomBy(factor) {
+      var v = state.view;
+      zoomAt({ x: v.x + v.w / 2, y: v.y + v.h / 2 }, factor);
+    }
+
+    /* type and markers are sized in screen px, so they only match the new
+       scale after a re-render. One render per zoom gesture is cheap; one
+       per wheel tick is not, so wait for the gesture to settle. */
+    var zoomTimer = null;
+    function scheduleRender() {
+      if (zoomTimer) { clearTimeout(zoomTimer); }
+      zoomTimer = setTimeout(function () { zoomTimer = null; render(); }, 90);
+    }
 
     /* rectangles already taken on this render: route, corridors, lift
        boxes, building names, dots and labels */
@@ -112,6 +231,7 @@
         x: at.x, y: at.y, class: cfg.cls, 'text-anchor': 'middle', 'data-role': cfg.role
       });
       if (cfg.node) { node.setAttribute('data-node', cfg.node); }
+      if (cfg.cat) { node.setAttribute('data-cat', cfg.cat); }
       lines.forEach(function (line, k) {
         node.appendChild(el('tspan', { x: at.x, dy: k ? (cfg.lh || 13) : 0 }, line));
       });
@@ -181,7 +301,7 @@
           node.remove();
           node = buildText(at, pair, cfg);
           g.appendChild(node);
-          var alt = measure(node, pair, wrapCandidates(cands), 0.12);
+          var alt = measure(node, pair, wrapCandidates(cands, state.u), 0.12);
           if (alt && alt.fits) {
             lines = pair;
             best = alt;
@@ -218,14 +338,33 @@
 
     function routeFloors() { return polylines().map(function (g) { return g.floor; }); }
 
-    function drawBackground(g) {
-      g.appendChild(el('rect', { x: 0, y: 0, width: 1000, height: 660, fill: '#f4f6f9' }));
-      for (var x = 40; x < 1000; x += 40) {
-        g.appendChild(el('line', { x1: x, y1: 0, x2: x, y2: 660, class: 'grid' }));
+    /* symbols and the grid live in <defs>. They are rebuilt on every render
+       because render() clears the whole <svg>; two nodes are cheaper than
+       forty grid lines. */
+    function drawDefs() {
+      var d = ICON.defs ? ICON.defs(document) : el('defs');
+      var pat = el('pattern', { id: 'grid', width: 40, height: 40, patternUnits: 'userSpaceOnUse' });
+      pat.appendChild(el('path', { d: 'M40 0H0V40', class: 'grid-line' }));
+      d.appendChild(pat);
+      svg.appendChild(d);
+    }
+
+    function drawPaper(g) {
+      g.appendChild(el('rect', { x: -1600, y: -1200, width: 4200, height: 3060, class: 'paper' }));
+      g.appendChild(el('rect', {
+        x: -1600, y: -1200, width: 4200, height: 3060, fill: 'url(#grid)'
+      }));
+    }
+
+    /* real footprints are polygons; a building without an outline still
+       falls back to its bounding rectangle, so simple data keeps working */
+    function buildingPath(b) {
+      var pts = C.outlineOf ? C.outlineOf(b) : null;
+      if (pts && pts.length) {
+        return 'M' + pts.map(function (p) { return p[0] + ',' + p[1]; }).join(' L') + ' Z';
       }
-      for (var y = 40; y < 660; y += 40) {
-        g.appendChild(el('line', { x1: 0, y1: y, x2: 1000, y2: y, class: 'grid' }));
-      }
+      var r = C.BUILDINGS[b].rect;
+      return 'M' + r[0] + ',' + r[1] + ' h' + r[2] + ' v' + r[3] + ' h' + (-r[2]) + ' Z';
     }
 
     function drawLinks(g, floor, activeBs) {
@@ -244,10 +383,15 @@
     function drawBuildings(g, floor, activeBs) {
       C.buildingsOn(floor).forEach(function (b) {
         var r = C.BUILDINGS[b].rect;
-        g.appendChild(el('rect', {
-          x: r[0], y: r[1], width: r[2], height: r[3], rx: 12,
-          class: 'bld' + (activeBs[b] ? ' bld-active' : '')
-        }));
+        var shape = el('path', {
+          d: buildingPath(b),
+          class: 'bld' + (activeBs[b] ? ' bld-active' : ''),
+          'data-bld': b
+        });
+        shape.appendChild(el('title', null,
+          I.buildingName(b, state.lang) + ' · ' + I.floorName(floor, state.lang)));
+        g.appendChild(shape);
+
         /* Name sits above the footprint, so it never collides with the
            rooms drawn just inside the walls. A route that comes down
            through that strip would draw straight over the text, so the
@@ -294,11 +438,15 @@
       });
     }
 
+    /* Two strokes: a wide soft band for the walkable width, a thin centre
+       line for the direction of travel. Reads as a corridor rather than a
+       highlight marker. */
     function drawCorridors(g, floor) {
       C.buildingsOn(floor).forEach(function (b) {
         var sp = C.SPINES[b];
         var pts = sp.xs.map(function (x) { return x + ',' + sp.y; }).join(' ');
         g.appendChild(el('polyline', { points: pts, class: 'corridor' }));
+        g.appendChild(el('polyline', { points: pts, class: 'corridor-core' }));
         reserve({
           x: sp.xs[0] - 8, y: sp.y - 7,
           w: sp.xs[sp.xs.length - 1] - sp.xs[0] + 16, h: 14
@@ -310,30 +458,33 @@
        so a lane starts 22 away from the dot to clear the 4.5 radius, and
        the next lane sits 20 further out. Every lane is offered centred,
        growing right and growing left, so two rooms sharing a lane can end
-       up beside each other instead of on top of each other. */
-    function laneCandidates(dir, lanes) {
+       up beside each other instead of on top of each other.
+       Distances are screen px, so they scale with the map's own unit. */
+    function laneCandidates(dir, lanes, u) {
+      u = u || 1;
       var out = [];
       lanes.forEach(function (k) {
-        var dy = k * dir;
+        var dy = k * dir * u;
         out.push({ a: 'middle', dx: 0, dy: dy });
-        out.push({ a: 'start', dx: 12, dy: dy });
-        out.push({ a: 'end', dx: -12, dy: dy });
+        out.push({ a: 'start', dx: 12 * u, dy: dy });
+        out.push({ a: 'end', dx: -12 * u, dy: dy });
       });
-      out.push({ a: 'start', dx: 12, dy: 3 });
-      out.push({ a: 'end', dx: -12, dy: 3 });
+      out.push({ a: 'start', dx: 12 * u, dy: 3 * u });
+      out.push({ a: 'end', dx: -12 * u, dy: 3 * u });
       return out;
     }
 
     /* a wrapped name is about half as wide, so it also gets a finer
        sideways grid - that lets it slot into the gap between a wall and
        the route running past the dot */
-    function wrapCandidates(cands) {
+    function wrapCandidates(cands, u) {
+      u = u || 1;
       var out = [];
       cands.forEach(function (c) {
         out.push(c);
         if (c.a !== 'middle') { return; }
         [-18, -26, 18, 26].forEach(function (dx) {
-          out.push({ a: 'middle', dx: dx, dy: c.dy });
+          out.push({ a: 'middle', dx: dx * u, dy: c.dy });
         });
       });
       return out;
@@ -341,56 +492,121 @@
 
     function roomCandidates(n, sp) {
       var dir = n.y < sp.y ? -1 : 1;
-      return laneCandidates(dir, [20, 40, -20, -40, 60, -60, 17, -17]);
+      return laneCandidates(dir, [20, 40, -20, -40, 60, -60, 17, -17], state.u);
+    }
+
+    /* Rooms are drawn as bays off the corridor: a small plate running from
+       the dot to the walkway, which is what a room actually looks like on
+       a plan. Purely decorative - labels never land on this side. */
+    function bayRect(n) {
+      var sp = C.SPINES[n.b];
+      if (!sp) { return null; }
+      var dy = sp.y - n.y;
+      if (Math.abs(dy) < 12) { return null; }
+      var w = 30, h = Math.abs(dy) - 8;
+      if (h < 6) { return null; }
+      return {
+        x: n.x - w / 2,
+        y: Math.min(n.y, sp.y) + 4,
+        w: w, h: h
+      };
+    }
+
+    function poiMark(n) {
+      var cat = ICON.catOf(n.poi);
+      var u = state.u;
+      var grp = el('g', { class: 'poi poi-' + cat, 'data-node': n.id, 'data-cat': cat });
+      if (state.lod === 'near') {
+        grp.appendChild(el('circle', { cx: n.x, cy: n.y, r: 9.5 * u, class: 'poi-disc' }));
+        grp.appendChild(el('use', {
+          href: '#ico-' + cat, x: n.x - 6.5 * u, y: n.y - 6.5 * u,
+          width: 13 * u, height: 13 * u, class: 'poi-icon'
+        }));
+      } else {
+        grp.appendChild(el('circle', { cx: n.x, cy: n.y, r: 4.5 * u, class: 'poi-disc' }));
+      }
+      grp.appendChild(el('title', null,
+        I.name(n.names, state.lang) + ' · ' + I.floorName(n.f, state.lang)));
+      return grp;
+    }
+
+    /* bays first: they are floor furniture, so the route runs over them */
+    function drawRoomBays(g, floor) {
+      if (state.lod === 'far') { return; }
+      C.nodes.filter(function (n) { return n.kind === 'room' && n.f === floor; })
+        .forEach(function (n) {
+          var b = bayRect(n);
+          if (!b) { return; }
+          g.appendChild(el('rect', {
+            x: b.x, y: b.y, width: b.w, height: b.h, rx: 2,
+            class: 'room-bay' + (n.poi === 'restroom' ? ' room-bay-wet' : '')
+          }));
+        });
     }
 
     function drawRooms(g, floor) {
       var rooms = C.nodes.filter(function (n) { return n.kind === 'room' && n.f === floor; });
+      var lod = state.lod;
 
-      /* dots first, so no label can ever be hidden under one */
+      /* markers first, so no label can ever be hidden under one */
       rooms.forEach(function (n) {
-        var dot = el('circle', { cx: n.x, cy: n.y, r: 4.5, class: 'room', 'data-node': n.id });
-        dot.appendChild(el('title', null, I.name(n.names, state.lang)));
-        g.appendChild(dot);
-        reserve({ x: n.x - 6, y: n.y - 6, w: 12, h: 12 });
+        g.appendChild(poiMark(n));
+        var rr = (lod === 'near' ? 11 : 6) * state.u;
+        reserve({ x: n.x - rr, y: n.y - rr, w: rr * 2, h: rr * 2 });
       });
+
+      /* zoomed out, a wall of 12px labels is noise: the building names and
+         the coloured dots carry the plan, and the labels come back as soon
+         as the user zooms to reading distance */
+      if (lod === 'far') { return; }
 
       rooms.forEach(function (n) {
         var txt = labelFor(n, state.lang);
         if (!txt) { return; }
         var r = C.BUILDINGS[n.b].rect;
         placeLabel(g, txt, n, roomCandidates(n, C.SPINES[n.b]), {
-          cls: 'room-label', role: 'room-label', node: n.id, fs: 12, lh: 13, wrap: true,
+          cls: 'room-label', role: 'room-label', node: n.id,
+          fs: 12 * state.u, lh: 13 * state.u, wrap: true,
+          cat: ICON.catOf(n.poi),
           bounds: { x: r[0], y: r[1], w: r[2], h: r[3] }
         });
       });
     }
 
     function drawCores(g, floor) {
+      var u = state.u;
       C.nodes.filter(function (n) { return n.kind === 'core' && n.f === floor; }).forEach(function (n) {
+        var isLift = n.coreKind === 'lift';
+        /* a lift reads as a car you step into, so it gets a wide capsule
+           that can hold two digits; stairs stay a compact square */
+        var w = (isLift ? 28 : 20) * u, h = 18 * u;
         var grp = el('g', { class: 'core core-' + n.coreKind, 'data-node': n.id });
         grp.appendChild(el('rect', {
-          x: n.x - 10, y: n.y - 10, width: 20, height: 20, rx: 5, class: 'core-box'
+          x: n.x - w / 2, y: n.y - h / 2, width: w, height: h,
+          rx: (isLift ? 9 : 5) * u, class: 'core-box'
         }));
-        if (n.coreKind === 'lift') {
+        if (isLift) {
           grp.appendChild(el('text', {
-            x: n.x, y: n.y + 4.5, class: 'core-num', 'text-anchor': 'middle'
+            x: n.x, y: n.y + 4.2 * u, class: 'core-num', 'text-anchor': 'middle'
           }, n.coreLabel));
         } else if (n.coreKind === 'stairs') {
           grp.appendChild(el('path', {
-            d: 'M' + (n.x - 6) + ',' + (n.y + 6) + ' h4 v-4 h4 v-4 h4 v-4',
+            d: 'M' + (n.x - 6 * u) + ',' + (n.y + 6 * u) +
+               ' h' + (4 * u) + ' v' + (-4 * u) + ' h' + (4 * u) + ' v' + (-4 * u) +
+               ' h' + (4 * u) + ' v' + (-4 * u),
             class: 'core-glyph'
           }));
         } else {
           grp.appendChild(el('path', {
-            d: 'M' + (n.x - 5) + ',' + (n.y + 6) + ' L' + (n.x + 5) + ',' + (n.y - 6),
+            d: 'M' + (n.x - 5 * u) + ',' + (n.y + 6 * u) +
+               ' L' + (n.x + 5 * u) + ',' + (n.y - 6 * u),
             class: 'core-glyph'
           }));
         }
         grp.appendChild(el('title', null,
           I.name(n.coreNames, state.lang) + ' · ' + I.floorName(floor, state.lang)));
         g.appendChild(grp);
-        reserve({ x: n.x - 12, y: n.y - 12, w: 24, h: 24 });
+        reserve({ x: n.x - 15 * u, y: n.y - 12 * u, w: 30 * u, h: 24 * u });
       });
     }
 
@@ -411,38 +627,101 @@
       });
     }
 
+    /* route segments that belong to other floors. They are NOT part of the
+       label collision set (same coordinate grid, different floor), but
+       drawing them faintly stops the route from looking like it just
+       stops in mid air when it changes level. */
+    function drawGhostRoute(g, floor) {
+      /* only worth drawing where the route actually is: a faint line on an
+         unrelated floor reads as a route that is not there */
+      if (routeFloors().indexOf(floor) < 0) { return; }
+      polylines().forEach(function (pl) {
+        if (pl.floor === floor) { return; }
+        var pts = pl.pts.map(function (p) { return p.x + ',' + p.y; }).join(' ');
+        g.appendChild(el('polyline', { points: pts, class: 'route-ghost' }));
+      });
+    }
+
+    /* evenly spaced white chevrons along the whole polyline. Walking the
+       polyline by cumulative distance (instead of per segment) matters:
+       the router emits a node every 20-40 units, so a per-segment rule
+       puts one arrow on a 250-unit corridor and none anywhere else. */
+    function drawFlow(g, pts) {
+      var u = state.u;
+      var segs = [], total = 0, i;
+      for (i = 1; i < pts.length; i++) {
+        var dx = pts[i].x - pts[i - 1].x, dy = pts[i].y - pts[i - 1].y;
+        var len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 0.5) { continue; }
+        segs.push({ a: pts[i - 1], ux: dx / len, uy: dy / len, len: len, at: total });
+        total += len;
+      }
+      if (!segs.length) { return; }
+
+      var step = 76 * u, s = 6 * u;
+      var count = Math.min(20, Math.max(1, Math.round(total / step)));
+      if (count * step > total) { step = total / count; }
+      for (var k = 1; k <= count; k++) {
+        var d = (k - 0.5) * step;
+        var j = 0;
+        while (j < segs.length - 1 && segs[j].at + segs[j].len < d) { j++; }
+        var sg = segs[j];
+        var t = Math.min(d - sg.at, sg.len);
+        var px = sg.a.x + sg.ux * t, py = sg.a.y + sg.uy * t;
+        g.appendChild(el('path', {
+          d: 'M' + (px + sg.ux * s) + ',' + (py + sg.uy * s) +
+             ' L' + (px - sg.ux * s - sg.uy * s * 0.8) + ',' + (py - sg.uy * s + sg.ux * s * 0.8) +
+             ' L' + (px - sg.ux * s + sg.uy * s * 0.8) + ',' + (py - sg.uy * s - sg.ux * s * 0.8) + ' Z',
+          class: 'route-arrow'
+        }));
+      }
+    }
+
     function drawRoute(g, floor) {
       polylines().forEach(function (pl) {
         if (pl.floor !== floor) { return; }
         var pts = pl.pts.map(function (p) { return p.x + ',' + p.y; }).join(' ');
         g.appendChild(el('polyline', { points: pts, class: 'route-halo' }));
         g.appendChild(el('polyline', { points: pts, class: 'route' }));
+        drawFlow(g, pl.pts);
       });
+    }
 
+    function drawPins(g, floor) {
       if (!state.route) { return; }
+      var u = state.u;
       var from = C.node(state.route.from), to = C.node(state.route.to);
       /* pins sit on top of the dots, so their labels get their own lanes -
-         20 apart keeps the bold 13px text clear of the lane beside it */
-      var cands = laneCandidates(1, [-22, 22, -42, 42, -62, 62]);
+         20 apart keeps the bold 13px text clear of the lane beside it.
+         The view itself is the bound: a pin on the edge of the pane must
+         not push its label out of the picture. */
+      var cands = laneCandidates(1, [-22, 22, -42, 42], state.u);
+      var vb = {
+        x: state.view.x + 3, y: state.view.y + 3,
+        w: state.view.w - 6, h: state.view.h - 6
+      };
       if (from && from.f === floor) {
-        g.appendChild(el('circle', { cx: from.x, cy: from.y, r: 9, class: 'pin pin-start' }));
-        reserve({ x: from.x - 11, y: from.y - 11, w: 22, h: 22 });
+        g.appendChild(el('circle', { cx: from.x, cy: from.y, r: 9 * u, class: 'pin pin-start' }));
+        reserve({ x: from.x - 11 * u, y: from.y - 11 * u, w: 22 * u, h: 22 * u });
         placeLabel(g, I.t('map.you', state.lang), from, cands,
-          { cls: 'pin-label pin-label-start', role: 'pin-label', node: state.route.from, fs: 13 });
+          { cls: 'pin-label pin-label-start', role: 'pin-label', node: state.route.from,
+            fs: 13 * u, lh: 13 * u, bounds: vb });
       }
       if (to && to.f === floor) {
-        g.appendChild(el('circle', { cx: to.x, cy: to.y, r: 9, class: 'pin pin-end' }));
-        reserve({ x: to.x - 11, y: to.y - 11, w: 22, h: 22 });
+        g.appendChild(el('circle', { cx: to.x, cy: to.y, r: 9 * u, class: 'pin pin-end' }));
+        reserve({ x: to.x - 11 * u, y: to.y - 11 * u, w: 22 * u, h: 22 * u });
         placeLabel(g, I.t('map.goal', state.lang), to, cands,
-          { cls: 'pin-label pin-label-end', role: 'pin-label', node: state.route.to, fs: 13 });
+          { cls: 'pin-label pin-label-end', role: 'pin-label', node: state.route.to,
+            fs: 13 * u, lh: 13 * u, bounds: vb });
       }
     }
 
     function drawMarker(g) {
       state.markerEls = null;
       if (!state.marker || state.marker.f !== state.floor) { return; }
-      var halo = el('circle', { cx: state.marker.x, cy: state.marker.y, r: 12, class: 'marker-halo' });
-      var dot = el('circle', { cx: state.marker.x, cy: state.marker.y, r: 6, class: 'marker' });
+      var u = state.u;
+      var halo = el('circle', { cx: state.marker.x, cy: state.marker.y, r: 12 * u, class: 'marker-halo' });
+      var dot = el('circle', { cx: state.marker.x, cy: state.marker.y, r: 6 * u, class: 'marker' });
       g.appendChild(halo);
       g.appendChild(dot);
       state.markerEls = { halo: halo, dot: dot };
@@ -451,6 +730,16 @@
     function render() {
       while (svg.firstChild) { svg.removeChild(svg.firstChild); }
       occ = [];
+      /* layer order is the picture: paper, then what is under the walker,
+         then the walls, then the route, then the words */
+      drawDefs();
+      applyView();
+      /* how many map units one CSS pixel is worth: markers and type are
+         sized in screen px, so they keep their size while the geometry
+         zooms - the difference between "a drawing that scales" and a map */
+      var pane = svg.getBoundingClientRect();
+      state.u = clamp(state.view.w / (pane.width || 1000), 0.28, 3);
+      svg.style.setProperty('--u', state.u.toFixed(4));
       /* the group has to be in the document before anything is drawn:
          getBBox() only measures nodes that are being laid out */
       var g = el('g');
@@ -465,16 +754,146 @@
       }
 
       reserveRoute();
-      drawBackground(g);
+      drawPaper(g);
       drawLinks(g, state.floor, activeBs);
       drawBuildings(g, state.floor, activeBs);
       drawCorridors(g, state.floor);
+      drawRoomBays(g, state.floor);
+      drawGhostRoute(g, state.floor);
+      drawRoute(g, state.floor);
       drawCores(g, state.floor);
       drawRooms(g, state.floor);
-      drawRoute(g, state.floor);
+      drawPins(g, state.floor);
       drawMarker(g);
+      applyFocus();
 
       if (opts.onRender) { opts.onRender(routeFloors(), state.floor); }
+    }
+
+    /* category focus: the legend fades everything the user is not looking
+       for. CSS does the fading, so labels keep their positions and the
+       plan does not jump around while filtering. */
+    function applyFocus() {
+      var cat = state.focus;
+      if (cat) { svg.setAttribute('data-focus', cat); }
+      else { svg.removeAttribute('data-focus'); }
+      var marks = svg.querySelectorAll('.poi, .room-label');
+      for (var i = 0; i < marks.length; i++) {
+        var m = marks[i];
+        var on = !cat || m.getAttribute('data-cat') === cat;
+        if (on) { m.classList.remove('is-dim'); }
+        else { m.classList.add('is-dim'); }
+      }
+    }
+
+    function buildLegend() {
+      var box = document.getElementById('mapLegend');
+      if (!box || !ICON.CATS.length) { return; }
+      box.innerHTML = '';
+      ICON.CATS.forEach(function (cat) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'lg lg-' + cat + (state.focus === cat ? ' on' : '');
+        b.innerHTML = '<i></i><span></span>';
+        b.querySelector('span').textContent = I.t('cat.' + cat, state.lang);
+        b.title = I.t('map.filterHint', state.lang);
+        b.onclick = function () {
+          state.focus = state.focus === cat ? null : cat;
+          buildLegend();
+          applyFocus();
+        };
+        box.appendChild(b);
+      });
+    }
+
+    /* hover a dot, get a name; hover the map, get nothing in the way */
+    function wireTip() {
+      var tip = document.getElementById('mapTip');
+      if (!tip) { return; }
+      var host = tip.parentNode;
+      svg.addEventListener('pointerover', function (e) {
+        var t = e.target && e.target.closest ? e.target.closest('[data-node]') : null;
+        if (!t) { return; }
+        var n = C.node(t.getAttribute('data-node'));
+        if (!n || !n.names) { return; }
+        tip.textContent = I.name(n.names, state.lang) + ' · ' + I.floorName(n.f, state.lang);
+        tip.hidden = false;
+      });
+      svg.addEventListener('pointerout', function () { tip.hidden = true; });
+      svg.addEventListener('pointermove', function (e) {
+        if (tip.hidden) { return; }
+        var r = host.getBoundingClientRect();
+        tip.style.left = (e.clientX - r.left + 14) + 'px';
+        tip.style.top = (e.clientY - r.top + 16) + 'px';
+      });
+    }
+
+    /* ---- viewport wiring --------------------------------------------- */
+    function wireView() {
+      var drag = null;
+
+      svg.addEventListener('wheel', function (e) {
+        e.preventDefault();
+        var step = e.deltaMode === 1 ? 0.06 : 0.0017;
+        zoomAt(toWorld(e.clientX, e.clientY), Math.exp(-e.deltaY * step));
+      }, { passive: false });
+
+      svg.addEventListener('pointerdown', function (e) {
+        if (e.button !== 0) { return; }
+        var m = svg.getScreenCTM();
+        drag = { x: e.clientX, y: e.clientY, sx: m ? m.a : 1, sy: m ? m.d : 1, moved: false };
+        if (svg.setPointerCapture) { svg.setPointerCapture(e.pointerId); }
+        svg.classList.add('is-dragging');
+      });
+
+      svg.addEventListener('pointermove', function (e) {
+        if (!drag) { return; }
+        var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 3) { return; }
+        drag.moved = true;
+        var v = state.view;
+        state.view = { x: v.x - dx / drag.sx, y: v.y - dy / drag.sy, w: v.w, h: v.h };
+        drag.x = e.clientX; drag.y = e.clientY;
+        state.userZoom = true;
+        applyView();
+        scheduleRender();
+      });
+
+      function endDrag(e) {
+        if (!drag) { return; }
+        drag = null;
+        svg.classList.remove('is-dragging');
+        if (svg.releasePointerCapture && e.pointerId !== undefined) {
+          try { svg.releasePointerCapture(e.pointerId); } catch (err) { /* gone */ }
+        }
+      }
+      svg.addEventListener('pointerup', endDrag);
+      svg.addEventListener('pointercancel', endDrag);
+
+      svg.addEventListener('dblclick', function (e) {
+        zoomAt(toWorld(e.clientX, e.clientY), 1.7);
+      });
+
+      var zi = document.getElementById('zoomIn');
+      var zo = document.getElementById('zoomOut');
+      var zf = document.getElementById('zoomFit');
+      if (zi) { zi.onclick = function () { zoomBy(1.35); }; }
+      if (zo) { zo.onclick = function () { zoomBy(1 / 1.35); }; }
+      if (zf) {
+        zf.onclick = function () { fitView(); render(); };
+      }
+      [zi, zo, zf].forEach(function (b, i) {
+        if (!b) { return; }
+        b.title = I.t(i === 0 ? 'map.zoomIn' : (i === 1 ? 'map.zoomOut' : 'map.fit'), state.lang);
+        b.setAttribute('aria-label', b.title);
+      });
+
+      if (typeof window !== 'undefined' && window.addEventListener) {
+        window.addEventListener('resize', function () {
+          if (state.userZoom) { return; }
+          if (fitView()) { render(); }
+        });
+      }
     }
 
     /* ---- walkthrough player ------------------------------------------ */
@@ -563,13 +982,17 @@
       state.timer = requestAnimationFrame(tick);
     }
 
+    buildLegend();
+    wireView();
+    wireTip();
+    fitView();
     render();
 
     return {
       render: render,
       setFloor: function (f) { state.floor = f; render(); },
       getFloor: function () { return state.floor; },
-      setLang: function (l) { state.lang = l; render(); },
+      setLang: function (l) { state.lang = l; buildLegend(); render(); },
       setRoute: function (route, steps) {
         stop();
         state.route = route || null;
@@ -592,7 +1015,17 @@
       play: play,
       pause: pause,
       isPlaying: function () { return !!state.playing; },
-      floors: routeFloors
+      floors: routeFloors,
+      zoomIn: function () { zoomBy(1.35); },
+      zoomOut: function () { zoomBy(1 / 1.35); },
+      fit: function () { fitView(); render(); },
+      zoom: function () { return WORLD.w / state.view.w; },
+      lod: function () { return state.lod; },
+      focus: function (cat) {
+        state.focus = cat || null;
+        buildLegend();
+        applyFocus();
+      }
     };
   }
 

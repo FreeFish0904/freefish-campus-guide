@@ -451,7 +451,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .floor.active { background: var(--accent); color: #fff; }
 .floor.active.on-route::after { background: #fff; }
 
-.map-canvas { flex: 1 1 auto; min-height: 0; display: flex; }
+.map-canvas { flex: 1 1 auto; min-height: 0; display: flex; position: relative; }
 
 #map {
   width: 100%;
@@ -503,46 +503,187 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* ---- SVG floor plan -------------------------------------------------- */
 #map text { font-family: inherit; user-select: none; }
+#map { cursor: grab; touch-action: none; }
+#map.is-dragging { cursor: grabbing; }
 
-.grid { stroke: #e9eef6; stroke-width: 1; }
+/* paper: the plan is drawn on a sheet, not on the page background, so a
+   zoomed-out view still reads as "map" rather than "empty" */
+.paper { fill: #f7f8fa; }
+.grid-line { stroke: #eceff5; stroke-width: calc(1px * var(--u, 1)); fill: none; }
 
-.bld { fill: #ffffff; stroke: #cfd9e6; stroke-width: 2; }
-.bld-active { fill: #f1fdfa; stroke: #5eead4; }
-.bld-name { font-size: 17px; font-weight: 700; fill: #334155; }
-.bld-code { font-size: 12px; font-weight: 700; fill: #a3b1c2; letter-spacing: .12em; }
-.bld-floor { font-size: 12px; fill: #a3b1c2; }
+.bld {
+  fill: #ffffff;
+  stroke: #d5dde8;
+  stroke-width: calc(1.6px * var(--u, 1));
+  stroke-linejoin: round;
+  filter: drop-shadow(0 3px 9px rgba(15, 23, 42, .07));
+  transition: fill .18s ease, stroke .18s ease;
+}
+.bld:hover { fill: #fbfdff; }
+.bld-active { fill: #f0fdf9; stroke: #5eead4; }
+.bld-name { font-size: calc(17px * var(--u, 1)); font-weight: 700; fill: #334155; }
+.bld-code { font-size: calc(11px * var(--u, 1)); font-weight: 700; fill: #a3b1c2; letter-spacing: .14em; }
+.bld-floor { font-size: calc(12px * var(--u, 1)); fill: #a3b1c2; }
 
-.corridor { fill: none; stroke: #e3eaf3; stroke-width: 9; stroke-linecap: round; }
+/* a corridor is a place you can walk, so it gets a soft band plus a fine
+   centre line - the line is what tells you it is a route, not a rug */
+.corridor {
+  fill: none; stroke: #e6ecf5; stroke-width: calc(14px * var(--u, 1));
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.corridor-core {
+  fill: none; stroke: #ffffff; stroke-width: calc(2.5px * var(--u, 1));
+  stroke-dasharray: calc(1px * var(--u, 1)) calc(8px * var(--u, 1));
+  stroke-linecap: round; opacity: .9;
+}
 
-.room { fill: #94a3b8; }
-.room-label { font-size: 12px; fill: #5b6b7f; }
+/* rooms as bays off the corridor */
+.room-bay { fill: #f8fafc; stroke: #e4eaf3; stroke-width: calc(1px * var(--u, 1)); }
+.room-bay-wet { fill: #f1f6fd; }
 
-.core-box { fill: #1f6feb; }
+/* seven categories, seven colours: what you are looking for, at a glance */
+.poi { --c: #94a3b8; cursor: pointer; transition: opacity .18s ease; }
+.poi-food      { --c: #f59e0b; }
+.poi-study     { --c: #3b82f6; }
+.poi-admin     { --c: #8b5cf6; }
+.poi-sport     { --c: #10b981; }
+.poi-transport { --c: #0ea5e9; }
+.poi-hall      { --c: #ec4899; }
+.poi-facility  { --c: #94a3b8; }
+
+.poi-disc { fill: var(--c); stroke: #fff; stroke-width: 1.5; }
+.poi:hover .poi-disc { stroke: #0f172a; }
+.poi-icon {
+  color: #fff;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.room-label { font-size: calc(12px * var(--u, 1)); fill: #5b6b7f; transition: opacity .18s ease; }
+.is-dim { opacity: .16; }
+
+/* lifts, stairs, escalators */
+.core-box { fill: #1d4ed8; stroke: #fff; stroke-width: calc(1.5px * var(--u, 1)); }
 .core-stairs .core-box { fill: #64748b; }
 .core-escalator .core-box { fill: #8b5cf6; }
-.core-num { font-size: 12px; font-weight: 700; fill: #fff; }
-.core-glyph { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.core-num { font-size: calc(11.5px * var(--u, 1)); font-weight: 700; fill: #fff; }
+.core-glyph {
+  fill: none; stroke: #fff;
+  stroke-width: calc(2px * var(--u, 1));
+  stroke-linecap: round; stroke-linejoin: round;
+}
 
-.link { stroke: #a9b6c7; stroke-width: 7; stroke-dasharray: 9 9; }
-.link-bridge { stroke-width: 16; stroke-dasharray: none; opacity: .32; }
+.link { stroke: #a9b6c7; stroke-width: calc(7px * var(--u, 1)); stroke-dasharray: calc(9px * var(--u, 1)) calc(9px * var(--u, 1)); }
+.link-bridge { stroke-width: calc(16px * var(--u, 1)); stroke-dasharray: none; opacity: .32; }
 .link-active { stroke: #f97316; opacity: .85; }
 
-.route-halo { fill: none; stroke: #fff; stroke-width: 13; stroke-linecap: round; stroke-linejoin: round; }
-.route { fill: none; stroke: #f97316; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+/* route: white casing, orange line, white chevrons. The casing is what
+   keeps the line legible when it crosses a corridor or a wall */
+.route-halo {
+  fill: none; stroke: #fff; stroke-width: calc(14px * var(--u, 1));
+  stroke-linecap: round; stroke-linejoin: round; opacity: .95;
+}
+.route {
+  fill: none; stroke: #f97316; stroke-width: calc(6.5px * var(--u, 1));
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.route-arrow { fill: #fff; opacity: .95; }
+/* the same route on the floors you are not looking at */
+.route-ghost {
+  fill: none; stroke: #f97316; stroke-width: calc(5px * var(--u, 1));
+  stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: calc(9px * var(--u, 1)) calc(9px * var(--u, 1));
+  opacity: .18;
+}
 
-.pin-start { fill: #10b981; stroke: #fff; stroke-width: 3; }
-.pin-end { fill: #ef4444; stroke: #fff; stroke-width: 3; }
+.pin-start { fill: #10b981; stroke: #fff; stroke-width: calc(3px * var(--u, 1)); }
+.pin-end { fill: #ef4444; stroke: #fff; stroke-width: calc(3px * var(--u, 1)); }
 .pin-label {
-  font-size: 13px;
+  font-size: calc(13px * var(--u, 1));
   font-weight: 700;
   fill: #334155;
   paint-order: stroke;
   stroke: #fff;
-  stroke-width: 3px;
+  stroke-width: calc(3px * var(--u, 1));
 }
 
-.marker { fill: #0f172a; stroke: #fff; stroke-width: 3; }
+.marker { fill: #0f172a; stroke: #fff; stroke-width: calc(3px * var(--u, 1)); }
 .marker-halo { fill: #0f172a; opacity: .16; }
+
+/* ---- map chrome: zoom, legend, tooltip -------------------------------- */
+.map-tools { display: flex; gap: 4px; }
+
+.tool {
+  width: 27px; height: 27px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.tool:hover { border-color: var(--accent); color: var(--accent-ink); }
+.tool:active { background: var(--accent-soft); }
+
+.map-legend {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: calc(100% - 16px);
+  pointer-events: none;
+}
+
+.lg {
+  --c: #94a3b8;
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(203, 213, 225, .8);
+  background: rgba(255, 255, 255, .92);
+  border-radius: 999px;
+  padding: 3px 8px 3px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.2;
+}
+.lg i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.lg:hover { border-color: var(--c); }
+.lg.on { border-color: var(--c); color: var(--ink); background: #fff; }
+
+.lg-food      { --c: #f59e0b; }
+.lg-study     { --c: #3b82f6; }
+.lg-admin     { --c: #8b5cf6; }
+.lg-sport     { --c: #10b981; }
+.lg-transport { --c: #0ea5e9; }
+.lg-hall      { --c: #ec4899; }
+.lg-facility  { --c: #94a3b8; }
+
+.map-tip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  background: #0f172a;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 7px;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, .24);
+}
 
 /* ---- desktop shell --------------------------------------------------- */
 @media (min-width: 961px) {
@@ -595,11 +736,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 
 @media (max-width: 700px) {
+  /* a phone shows the plan small: at the fitted zoom the room labels are
+     unreadable anyway, so they wait until the user zooms in */
   .room-label, .pin-label, .bld-code { display: none; }
-  .bld-name { font-size: 27px; }
-  .bld-floor { font-size: 19px; }
-  .core-num { font-size: 19px; }
+  #map[data-zoom="near"] .room-label { display: inline; }
   .legend { display: none; }
+  .map-legend { display: none; }
   .brand-text h1 { font-size: 15px; }
 }
 

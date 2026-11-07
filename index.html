@@ -54,10 +54,17 @@
     <div class="map-head">
       <h2 data-i18n="map.title">Floor plan</h2>
       <div class="floor-tabs" id="floorTabs" role="group" aria-label="Floor"></div>
+      <div class="map-tools" role="group" aria-label="Zoom">
+        <button type="button" id="zoomOut" class="tool" aria-label="Zoom out">−</button>
+        <button type="button" id="zoomIn" class="tool" aria-label="Zoom in">+</button>
+        <button type="button" id="zoomFit" class="tool" aria-label="Fit to campus">⤢</button>
+      </div>
     </div>
     <div class="map-canvas">
       <svg id="map" viewBox="0 0 1000 660" preserveAspectRatio="xMidYMid meet"
            role="img" aria-label="Campus floor plan"></svg>
+      <div class="map-legend" id="mapLegend" role="group"></div>
+      <div class="map-tip" id="mapTip" hidden></div>
     </div>
     <div class="map-foot">
       <button type="button" id="playBtn" class="ghost" data-i18n="map.play">Play walkthrough</button>
@@ -75,6 +82,7 @@
 </footer>
 
 <script src="src/data/campus.js"></script>
+<script src="src/icons.js"></script>
 <script src="src/i18n.js"></script>
 <script src="src/router.js"></script>
 <script src="src/steps.js"></script>

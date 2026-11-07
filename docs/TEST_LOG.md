@@ -4,7 +4,7 @@
 
 Everything runs locally; there is no backend.
 
-- `node tests/run_tests.js` runs 49 cases / 566 assertions against the same
+- `node tests/run_tests.js` runs 49 cases / 599 assertions against the same
   scripts the browser loads and writes `docs/TEST_RESULTS.md`.
 - `node tests/check_graph.js` validates the data alone: 214 nodes, 300 edges,
   one connected graph, all 57 points of interest reachable without stairs, no
@@ -53,6 +53,39 @@ Everything runs locally; there is no backend.
 7. `reserveRoute()` reserved segments of *every* floor, so a line drawn on G/F
    pushed LG1 labels away from empty space; the blocker is now filtered by the
    floor being drawn. This was what pushed "Coffee Shop" out of the Student Hub.
+8. Re-ordering the plan so the route runs *under* the lift capsules put the pin
+   labels before the room labels, and "You are here" landed on top of
+   "Main Entrance" (caught by `layout_check.html`, 3 renders). Pins are drawn
+   after the rooms again; only the line moved down a layer.
+9. The faint route from *other* floors was drawn on every floor, so visiting an
+   unrelated level showed a phantom dashed line at corridor height. It now
+   appears only on floors the route actually uses.
+
+## Map rendering pass (2026-11-07)
+
+The plan was rebuilt as a product-style map instead of a diagram.
+
+- **Real footprints** - `campus.js` gained an `OUTLINES` table (stepped, chamfered
+  and rounded polygons); `rect` stays as the bounding box, so labels, the graph
+  checker and the layout checker keep working unchanged.
+- **Categories** - `src/icons.js` maps each `poi` type to one of seven categories
+  with an inline line icon (no emoji: they re-render differently on every OS).
+  Dots are category-coloured; icons appear when zoomed in.
+- **Three levels of detail** by zoom: < 0.92x building names only, 0.92-1.7x adds
+  room names, > 1.7x adds icons. At the middle level the label set is exactly the
+  old one, which is why `layout_check.html` still reports 72 renders / 1302 texts
+  / 0 problems.
+- **Zoom and pan** - wheel, drag, double-click, buttons, `?zoom=` deep link.
+  Marker and type sizes are in screen px (`--u` = map units per CSS px), so the
+  geometry zooms while the labels stay legible instead of turning into wallpaper.
+- **Legend** - seven categories, click one to fade the rest; the fade is CSS only,
+  so no label moves while filtering.
+- **Route** - white casing, orange line, chevrons, and a ghost of the same route
+  on the other floors it uses.
+
+Re-checked after the rebuild: graph OK (214 nodes / 300 edges), 49 cases /
+599 assertions / 0 failed, smoke 17 passed / 0 errors, layout check 72 renders /
+1302 texts / 0 problems, screenshots regenerated at 1440x900 and 390x844.
 
 ## Still weak
 
