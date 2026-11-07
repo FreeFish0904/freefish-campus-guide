@@ -175,7 +175,8 @@ escalator is 22 s. Step-free mode removes every edge flagged
 ```bash
 node tests/check_graph.js     # data integrity: both campuses + the checklist
 node tests/run_tests.js       # 49 cases / 641 assertions -> docs/TEST_RESULTS.md
-node tests/check_bundle.js    # Dify bundle: fresh, sandbox-safe, 103 checks
+node tests/check_bundle.js    # Dify bundle: fresh, sandbox-safe, 112 checks
+node tests/check_sandbox.js   # the pasted Code node under a hostile sandbox
 node tools/bundle_engine.js   # rebuild dist/ after touching src/ (then re-run above)
 python3 tests/browser_check.py  # the bundle check + smoke + fonts + layout
 open tests/smoke.html         # 30 UI checks, driven in a real browser
@@ -190,7 +191,11 @@ python3 tests/screenshots.py  # regenerate docs/screenshots
 replays twelve questions through an independent implementation of the answer
 card, in all three languages. **The text must match the browser build byte for
 byte**, the engine hash must match the sources, and a stale `dist/` fails the
-build. Current: **12 golden questions, 103 checks, 0 failures**.
+build. `check_sandbox.js` then loads the exact file that gets pasted into Dify
+behind `"use strict"` in a context with no `console`, and feeds it the things a
+form can send: `undefined`, `null`, a number, an object, 20 000 characters, an
+empty `lang`, a boolean that arrives as the string `'false'`. Current:
+**12 golden questions, 112 bundle checks + 32 sandbox checks, 0 failures**.
 
 `layout_check.html` measures every `<text>` with `getBBox()` after each render
 and fails if a label touches another label, a lift box, a POI dot, the route

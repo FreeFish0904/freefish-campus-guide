@@ -268,12 +268,17 @@ and what it caught:
 - `tools/bundle_engine.js` + `tools/engine_api.js` -> `dist/`. The bundle is the
   seven browser scripts in `index.html` order, so the Dify app cannot drift
   from the web app; `Engine.version` is a hash of exactly those files.
-- `tests/check_bundle.js`: 103 checks - freshness of `dist/`, no
+- `tests/check_bundle.js`: 112 checks - freshness of `dist/`, no
   `document`/`window`/`require`/`process`/`fetch` in the minified code, JSON
   nesting <= 5 (a Dify output limit), the twelve golden questions byte-identical
-  to a card rendered independently here, and the generated `function main(inputs)`
+  to a card rendered independently here, every quoted example in the app's own
+  help text actually understood, and the generated `function main(inputs)`
   wrapper called the way Dify calls it.
-- `tests/browser_check.py` runs it first, so one command still covers everything.
+- `tests/check_sandbox.js`: 32 checks on the file that gets pasted - strict
+  mode, a context with no `console`, `undefined`/`null`/number/object/20 000
+  characters as `inputs`, `'false'` as a boolean, repeat calls, and its own
+  mutation of the inputs object. Cold answer ~13 ms against Dify's timeout.
+- `tests/browser_check.py` runs both first, so one command still covers everything.
 
 ### Bugs found and fixed in this pass
 
@@ -289,6 +294,16 @@ and what it caught:
   contains a space, and the two canteens learned their 飯堂 spellings. 192 s,
   the right room. All 641 assertions still pass - the change only ever adds a
   match.
+- **The app's own example sentence was not a sentence it understood.** The help
+  text said `how do I get to LT-1?` - LT-1 exists on the demo campus only, so
+  on the real HKUST map the app answered its own suggestion with "I could not
+  work out the destination". The second example, `where is the nearest
+  restroom?`, had no origin and so asked a question back. Both examples are now
+  `... to LG1 canteen?` and `nearest restroom from the library entrance`, which
+  work on both campuses, and `check_bundle.js` now pulls every quoted example
+  out of the help text in all three languages and requires the engine to
+  understand it (9 new checks). Any demo link built on LT-1 in
+  `docs/SUBMISSION.md` got `&data=demo` or an HKUST question in its place.
 
 
 Two data sets to keep in step; 47 places still marked 未核实; constant walking

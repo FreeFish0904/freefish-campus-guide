@@ -4,7 +4,7 @@
  *   node tools/bundle_engine.js
  *
  * Sources (in load order): src/data/graph.js, src/data/campus.ust.js, src/data/active.js, src/i18n.js, src/router.js, src/steps.js, src/nlu.js, tools/engine_api.js
- * Engine version: 1639a6af52f9
+ * Engine version: a2762b3892aa
  *
  * Standalone: run it and it hands you globalThis.Engine (and returns it).
  * For a Dify Code node use dist/dify-code-node.js instead - same code,
@@ -896,9 +896,13 @@
       'clarify.assumed':   { en: 'Assuming you are at {place}.', zh: '我先当你在{place}。', yue: '我當你喺{place}。' },
       'clarify.pickOrigin':{ en: 'Pick a starting point:', zh: '选一个起点：', yue: '揀一個起點：' },
       'clarify.pickDest':  { en: 'Pick a destination:', zh: '选一个终点：', yue: '揀一個終點：' },
-      'clarify.help':      { en: 'Try: "I am at the Library entrance, how do I get to LT-1?" or "where is the nearest restroom?"',
-                             zh: '可以这样说：“我在图书馆正门，怎么去 LT-1？”或者“最近的洗手间在哪？”',
-                             yue: '可以咁講：「我喺圖書館正門，點去 LT-1？」或者「最近嘅洗手間喺邊？」' },
+      /* Both examples have to work on both campuses as typed - they are the
+         app's own suggestion, and a suggestion it cannot parse is the worst
+         possible first impression. "LT-1" is demo-only, and a bare "nearest
+         restroom" has no origin, so it asks instead of answering. */
+      'clarify.help':      { en: 'Try: "I am at the Library entrance, how do I get to LG1 canteen?" or "nearest restroom from the library entrance"',
+                             zh: '可以这样说：“我在图书馆正门，怎么去 LG1 食堂？”或者“我在图书馆正门，最近的洗手间在哪？”',
+                             yue: '可以咁講：「我喺圖書館正門，點去 LG1 食堂？」或者「我喺圖書館正門，最近嘅洗手間喺邊？」' },
       'clarify.nearest':   { en: 'Nearest {poi} to {place}:', zh: '离{place}最近的{poi}：', yue: '離{place}最近嘅{poi}：' },
 
       'poi.restroom':   { en: 'restroom', zh: '洗手间', yue: '洗手間' },
@@ -1937,7 +1941,7 @@
     var S = F.Steps;
 
     /* replaced by tools/bundle_engine.js at build time */
-    var VERSION = '1639a6af52f9';
+    var VERSION = 'a2762b3892aa';
 
     /* ---- small helpers -------------------------------------------------- */
 

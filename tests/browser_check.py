@@ -6,6 +6,8 @@ Run the browser-side checks in headless Chrome, plus the Dify bundle check.
 
   node tests/check_bundle.js   dist/dify-engine.js is current, sandbox-safe
                                and answers exactly like the browser build
+  node tests/check_sandbox.js  the pasted Code node survives a strict, bare,
+                               console-less context and anything as inputs
   tests/smoke.html         drives the real UI (21 checks, both campuses)
   tests/layout_check.html  measures every label on every floor (?data=demo
                            and ?data=ust), 0 collisions required
@@ -82,6 +84,18 @@ def main():
                 print('  ' + l)
         if bundle.stderr.strip():
             print('  ' + bundle.stderr.strip().splitlines()[-1])
+
+    sandbox = subprocess.run(['node', 'tests/check_sandbox.js'], cwd=ROOT,
+                             capture_output=True, text=True)
+    lines = [l for l in sandbox.stdout.strip().splitlines() if l]
+    print('check_sandbox.js: ' + (lines[-1] if lines else 'NO OUTPUT'))
+    if sandbox.returncode != 0:
+        failed += 1
+        for l in lines:
+            if l.startswith('FAIL'):
+                print('  ' + l)
+        if sandbox.stderr.strip():
+            print('  ' + sandbox.stderr.strip().splitlines()[-1])
 
     smoke = load('tests/smoke.html')
     print('smoke.html: ' + (smoke.splitlines()[0] if smoke else 'NO RESULT'))

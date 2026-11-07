@@ -266,6 +266,20 @@ const greeting = E.answer('hello');
 ok('multi-turn', greeting.kind === 'clarify' && greeting.need === 'none',
    'a greeting asks for help');
 
+/* the app's own example sentence must be a sentence the app understands -
+   it is the first thing a stuck user types back at it */
+['en', 'zh', 'yue'].forEach(function (lang) {
+  const text = E.answer('', { lang: lang }).text;
+  const quoted = text.match(/["“「]([^"”」]{8,})["”」]/g) || [];
+  ok('help', quoted.length >= 2, lang + ' help text quotes ' + quoted.length + ' examples');
+  quoted.forEach(function (q) {
+    const sentence = q.slice(1, -1);
+    const r = E.answer(sentence, { lang: lang });
+    ok('help', r.kind !== 'clarify',
+       lang + ' help example must be understood: "' + sentence + '" -> ' + r.kind);
+  });
+});
+
 /* ---- 5. the Dify Code node wrapper ----------------------------------- */
 /* dist/dify-code-node.js is what gets pasted into Dify: the same engine,
    evaluated once, behind function main(inputs). Run it exactly that way. */

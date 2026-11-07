@@ -41,7 +41,8 @@ Two consequences worth saying out loud in the report:
 
 ```bash
 node tools/bundle_engine.js        # writes dist/, prints the engine version
-node tests/check_bundle.js         # 103 checks: fresh, sandbox-safe, byte-identical
+node tests/check_bundle.js         # 112 checks: fresh, sandbox-safe, byte-identical
+node tests/check_sandbox.js        # 32 checks: the pasted node under a hostile box
 ```
 
 | file | size | what it is |
@@ -78,6 +79,21 @@ prints):
 The one thing that could still go wrong is Dify refusing an 82 KB Code node.
 Find out now, not after wiring six nodes.
 
+### What is already proven, and what is not
+
+| | how it is checked | status |
+|---|---|---|
+| the engine is current, sandbox-safe, byte-identical to the browser | `node tests/check_bundle.js` (112 checks) | **green** |
+| the pasted file survives strict mode, no `console`, junk inputs, the 5-level / 400k output limits, and repeat calls | `node tests/check_sandbox.js` (32 checks, cold answer ~13 ms) | **green** |
+| Dify Cloud accepts an 82 KB Code node at all | a human clicking paste | **unknown** |
+| Dify's own JS runtime matches Node's for this code | the sandbox above is a proxy, not Dify | **unknown** |
+| the DeepSeek ids below are on *your* provider list | the model dropdown | **unknown** |
+
+Everything in the first two rows runs on this machine, in a `vm` context with
+nothing in it, which is the closest thing to a Code node that can be tested
+without logging in. Rows three to five cannot be settled from here; Phase 0 is
+one paste that settles all three.
+
 1. <https://cloud.dify.ai> → **Studio** → **Create from Blank** → **Chatflow**.
    Name it `HKUST Campus Guide`. (Chatflow, not Workflow: we want the chat box
    and conversation variables; the Workflow app has no chat UI.)
@@ -102,7 +118,7 @@ Find out now, not after wiring six nodes.
 |---|---|
 | `library entrance to lg 1 canteen` | a route, 3 min 12 s, no lift |
 | `where is the nearest toilet from the piazza` | "Nearest restroom to Entrance Piazza", 5 min 26 s |
-| `hello` | "Try: \"I am at the Library entrance, how do I get to LT-1?\" …" |
+| `hello` | `Try: "I am at the Library entrance, how do I get to LG1 canteen?" …` |
 
 **Report back one of these three**, and we go to Phase 1:
 

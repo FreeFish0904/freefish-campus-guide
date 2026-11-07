@@ -1,7 +1,7 @@
 /* =====================================================================
  * Dify Code node (JavaScript) - GENERATED FILE, do not edit.
  *   node tools/bundle_engine.js
- * Engine version: 1639a6af52f9
+ * Engine version: a2762b3892aa
  *
  * Declare these as the node inputs:
  *   query     string   what the user typed
@@ -694,9 +694,9 @@ function __boot() {
     'clarify.assumed':   { en: 'Assuming you are at {place}.', zh: '我先当你在{place}。', yue: '我當你喺{place}。' },
     'clarify.pickOrigin':{ en: 'Pick a starting point:', zh: '选一个起点：', yue: '揀一個起點：' },
     'clarify.pickDest':  { en: 'Pick a destination:', zh: '选一个终点：', yue: '揀一個終點：' },
-    'clarify.help':      { en: 'Try: "I am at the Library entrance, how do I get to LT-1?" or "where is the nearest restroom?"',
-    zh: '可以这样说：“我在图书馆正门，怎么去 LT-1？”或者“最近的洗手间在哪？”',
-    yue: '可以咁講：「我喺圖書館正門，點去 LT-1？」或者「最近嘅洗手間喺邊？」' },
+    'clarify.help':      { en: 'Try: "I am at the Library entrance, how do I get to LG1 canteen?" or "nearest restroom from the library entrance"',
+    zh: '可以这样说：“我在图书馆正门，怎么去 LG1 食堂？”或者“我在图书馆正门，最近的洗手间在哪？”',
+    yue: '可以咁講：「我喺圖書館正門，點去 LG1 食堂？」或者「我喺圖書館正門，最近嘅洗手間喺邊？」' },
     'clarify.nearest':   { en: 'Nearest {poi} to {place}:', zh: '离{place}最近的{poi}：', yue: '離{place}最近嘅{poi}：' },
     'poi.restroom':   { en: 'restroom', zh: '洗手间', yue: '洗手間' },
     'poi.cafe':       { en: 'café', zh: '咖啡店', yue: '咖啡店' },
@@ -1546,7 +1546,7 @@ function __boot() {
     var N = F.NLU;
     var R = F.Router;
     var S = F.Steps;
-    var VERSION = '1639a6af52f9';
+    var VERSION = 'a2762b3892aa';
     function pickLang(lang, fallback) {
     if (lang === 'en' || lang === 'zh' || lang === 'yue') { return lang; }
     return fallback || 'en';
