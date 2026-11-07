@@ -119,8 +119,11 @@ src/map.js              SVG floor plans + walkthrough player
 src/app.js              state, chat thread, wiring
 src/tasks.js            the checklist drawer: ticks, progress, Go
 404.html                GitHub Pages fallback: a wrong path sends you to the app
-tests/                  graph + data checkers, 49-case suite, browser checks
-docs/                   test log, sample queries, deploy guide, screenshots
+tools/bundle_engine.js  builds dist/: the browser scripts + engine_api.js
+tools/engine_api.js     Engine.parse / route / nearest / answer, the Dify surface
+dist/                   generated: dify-engine.js, .min.js, dify-code-node.js
+tests/                  graph + data checkers, 49-case suite, bundle + browser checks
+docs/                   test log, sample queries, deploy + Dify guides, screenshots
 ```
 
 **Data model.** A campus is a *spec*: buildings with a footprint (`rect` for the
@@ -172,12 +175,22 @@ escalator is 22 s. Step-free mode removes every edge flagged
 ```bash
 node tests/check_graph.js     # data integrity: both campuses + the checklist
 node tests/run_tests.js       # 49 cases / 641 assertions -> docs/TEST_RESULTS.md
-python3 tests/browser_check.py  # smoke + fonts + label layout, headless Chrome
+node tests/check_bundle.js    # Dify bundle: fresh, sandbox-safe, 103 checks
+node tools/bundle_engine.js   # rebuild dist/ after touching src/ (then re-run above)
+python3 tests/browser_check.py  # the bundle check + smoke + fonts + layout
 open tests/smoke.html         # 30 UI checks, driven in a real browser
 open tests/layout_check.html  # label layout: every floor x language x scenario
 open tests/font_check.html    # every character has a glyph; no icon is a glyph
 python3 tests/screenshots.py  # regenerate docs/screenshots
 ```
+
+`check_bundle.js` is the guard for the Dify build (see
+[`docs/DIFY.md`](docs/DIFY.md)). It loads `dist/dify-engine.js` in a bare
+`vm` context — no `document`, `window`, `require`, `process`, `fetch` — and
+replays twelve questions through an independent implementation of the answer
+card, in all three languages. **The text must match the browser build byte for
+byte**, the engine hash must match the sources, and a stale `dist/` fails the
+build. Current: **12 golden questions, 103 checks, 0 failures**.
 
 `layout_check.html` measures every `<text>` with `getBBox()` after each render
 and fails if a label touches another label, a lift box, a POI dot, the route

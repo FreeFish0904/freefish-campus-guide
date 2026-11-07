@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """
-Run the two browser-side checks in headless Chrome.
+Run the browser-side checks in headless Chrome, plus the Dify bundle check.
 
     python3 tests/browser_check.py
 
+  node tests/check_bundle.js   dist/dify-engine.js is current, sandbox-safe
+                               and answers exactly like the browser build
   tests/smoke.html         drives the real UI (21 checks, both campuses)
   tests/layout_check.html  measures every label on every floor (?data=demo
                            and ?data=ust), 0 collisions required
   tests/font_check.html    every printable character has a text-font glyph,
                            and no icon is a font glyph
 
-Both pages write their verdict into <pre id="RESULT">, so this script reads
-the DOM back instead of needing a driver library. file:// iframes are
+The three pages write their verdict into <pre id="RESULT">, so this script
+reads the DOM back instead of needing a driver library. file:// iframes are
 same-origin only with --allow-file-access-from-files, which is why it is
 passed here and worth remembering when running the pages by hand.
 """
@@ -68,6 +70,18 @@ def main():
         return 1
 
     failed = 0
+
+    bundle = subprocess.run(['node', 'tests/check_bundle.js'], cwd=ROOT,
+                            capture_output=True, text=True)
+    lines = [l for l in bundle.stdout.strip().splitlines() if l]
+    print('check_bundle.js: ' + (lines[-1] if lines else 'NO OUTPUT'))
+    if bundle.returncode != 0:
+        failed += 1
+        for l in lines:
+            if l.startswith('FAIL'):
+                print('  ' + l)
+        if bundle.stderr.strip():
+            print('  ' + bundle.stderr.strip().splitlines()[-1])
 
     smoke = load('tests/smoke.html')
     print('smoke.html: ' + (smoke.splitlines()[0] if smoke else 'NO RESULT'))

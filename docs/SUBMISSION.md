@@ -24,6 +24,19 @@ Handy deep links to paste into a demo:
 | Step-free turned off | `?q=library+to+LT-1&sf=0` |
 | Jump straight to 3/F | `?q=library+to+LT-1&floor=3F` |
 
+### Same engine, on Dify (one chat link)
+
+`docs/DIFY.md`. The routing engine is bundled unchanged
+(`node tools/bundle_engine.js` → `dist/dify-code-node.js`) and runs inside a
+Dify Code node, so the Dify app and this web app return **the same route
+text, byte for byte** — asserted by `tests/check_bundle.js`, twelve questions
+in three languages. The LLM (DeepSeek) only handles the sentences the rules
+refuse to guess at, and the route branch never touches the model: with the
+model switched off, every wayfinding answer still works.
+
+> Dify Web App link: *pending — Phase 0 of `docs/DIFY.md`*
+
+
 ## 2. Test log (~300 words)
 
 `docs/TEST_LOG.md` — what was tested, how to re-run it, and the five bugs the
