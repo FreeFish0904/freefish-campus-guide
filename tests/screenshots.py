@@ -80,6 +80,17 @@ SHOTS = [
             'data': 'ust',
         },
     },
+    {
+        'file': 'mobile-tasks.png',
+        'size': (500, 880),
+        'page': 'tests/phone.html',
+        'crop': (780, 1688),
+        'query': {
+            'lang': 'zh',
+            'data': 'ust',
+            'tasks': '1',
+        },
+    },
 ]
 
 

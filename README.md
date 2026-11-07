@@ -218,8 +218,8 @@ names survive, 0.92–1.7× adds room names, above 1.7× adds category icons.
 | G/F: the whole campus, piazza → bus stop | 中文, library → LG1 canteen |
 | ![Fastest](docs/screenshots/desktop-fastest.png) | ![Checklist](docs/screenshots/desktop-tasks.png) |
 | LG7 → LT-A: two lift banks, fastest | the newcomer checklist drawer |
-| ![Phone](docs/screenshots/mobile-390.png) | |
-| 390 × 844 phone layout | |
+| ![Phone](docs/screenshots/mobile-390.png) | ![Phone checklist](docs/screenshots/mobile-tasks.png) |
+| 390 × 844 phone layout | the checklist on a 390px phone |
 
 ## Known limitations
 
