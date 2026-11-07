@@ -96,6 +96,45 @@ one paste that settles all three.
 
 ### What to do, in order
 
+Eight steps. Every button named below is given with its 简体中文 label, and the
+table right after this sentence is the whole mapping in one place.
+
+#### If your Dify is in 简体中文
+
+The rest of this file names buttons in English. Dify's zh-Hans build keeps some
+English, translates some, and one translation will derail you. This is the
+mapping, checked against Dify's own Chinese documentation
+(`docs.dify.ai/zh-hans`), not guessed:
+
+| in this file | 中文界面 |
+|---|---|
+| Studio | **工作室** |
+| Create from Blank | **从空白创建** |
+| Chatflow | **Chatflow** — 中文界面也保留英文名。**不要**选「工作流」 |
+| Start | **开始**（新版文档写作「用户输入」） |
+| Code | **代码** |
+| Language | **语言**（Python / JavaScript） |
+| Input Variables | **输入变量** |
+| Output Variables | **输出变量** |
+| If/Else | **If-Else** |
+| Answer | **直接回复** |
+| LLM | **大语言模型** |
+| model / temperature / max tokens | **模型** / **温度** / **最大 token 数** |
+| Memory | **记忆** |
+| Settings → Model Provider | **集成 → 模型供应商** |
+| Default Model → System Reasoning Model | **默认模型 → 系统推理模型** |
+| Preview | **预览** |
+| Run (a single node) | **运行**（节点面板里的单节点调试） |
+| Publish → Publish Update | **发布 → 发布更新** |
+| Overview / Web App | **概览** / **Web 应用** |
+| Conversation Variables | **会话变量** |
+| the `{x}` variable picker | **插入变量**（也可以在输入框里直接打 `/`） |
+
+**The one trap: 「直接回复」只存在于 Chatflow.** A Workflow app's last node is
+called **「结束」**, and it produces no chat UI. If the node you just added reads
+结束, the app was created as 工作流 — recreate it as Chatflow, or every check in
+Appendix A fails for the boring reason that there is nowhere to type.
+
 **0. Put the file on your clipboard.** In the repo, one line:
 
 ```bash
@@ -105,11 +144,11 @@ pbcopy < dist/dify-code-node.js && pbpaste | wc -c
 It must print **83824**. That is the whole file — pasting half of it is the
 one mistake that produces a puzzling syntax error instead of a size error.
 
-1. <https://cloud.dify.ai> → **Studio** → **Create from Blank** → **Chatflow**.
+1. <https://cloud.dify.ai> → **Studio**（工作室）→ **Create from Blank**（从空白创建）→ **Chatflow**.
    Name it `HKUST Campus Guide`. (Chatflow, not Workflow: we want the chat box
    and conversation variables; the Workflow app has no chat UI.)
-2. The graph already has **Start**. Click **+** after it → **Code**.
-3. In the Code node, set **Language = JavaScript**, then **Input Variables**:
+2. The graph already has **Start**（开始）. Click **+** after it → **Code**（代码）.
+3. In the Code node, set **Language = JavaScript**（语言）, then **Input Variables**（输入变量）:
    delete the two default rows and add one.
 
    | name | type | value |
@@ -120,7 +159,7 @@ one mistake that produces a puzzling syntax error instead of a size error.
    same as empty, and the engine detects the language itself.
 4. **Paste** into the code box (⌘V once). The first line should read
    `/* =====...` and `Dify Code node (JavaScript) - GENERATED FILE`.
-5. **Output Variables** — the step that bites everyone. Add exactly:
+5. **Output Variables**（输出变量）— the step that bites everyone. Add exactly:
 
    | name | type |
    |---|---|
@@ -130,13 +169,13 @@ one mistake that produces a puzzling syntax error instead of a size error.
    `text` is what the Answer node prints. `ok` is what the If/Else in Phase 1
    branches on. (The node returns 20 more fields; add the ones you reference,
    or Dify will not offer them downstream.)
-6. **Run this node** in the node's own debug panel with
+6. **Run this node**（运行）in the node's own debug panel with
    `query = library entrance to lg 1 canteen`. Expect `ok: true`, `sec: 192`,
    `lifts: []`, and `text` starting `**Library Entrance → LG1 Canteen (Maxim's)**`.
-7. Add an **Answer** node after the Code node. In its text box type `/` or click
+7. Add an **Answer** node（直接回复）after the Code node. In its text box type `/` or click
    `{x}` → **Code** → **text**, so the reference is `{{#<node>.text#}}`. Do not
    hand-type the node id.
-8. **Preview** the chat (top right) and ask the three questions below.
+8. **Preview**（预览）the chat (top right) and ask the three questions below.
 
 | ask this | expect |
 |---|---|
@@ -176,12 +215,12 @@ Start ─► Code「engine」 ─► If「rules answered?」 ─► Answer「rou
 
 | node | type | settings |
 |---|---|---|
-| Start | Start | only `sys.query` is used |
-| Code「engine」 | Code, JavaScript | input `query` = `{{#sys.query#}}`; outputs **`text`** (String) + **`ok`** (Boolean); body = `dist/dify-code-node.js` |
-| If「rules answered?」 | If/Else | `{{#code.ok#}}` **is** `true` → TRUE; note the picker gives you the real node id, not the word `code` |
-| Answer「route」 | Answer | `{{#code.text#}}` |
-| LLM「front desk」 | LLM | model **deepseek-v4-pro**, temperature **0**, max tokens **240**, no thinking mode |
-| Answer「reply」 | Answer | `{{#llm.text#}}` |
+| Start | Start（开始） | only `sys.query` is used |
+| Code「engine」 | Code（代码）, JavaScript | input `query` = `{{#sys.query#}}`; outputs **`text`** (String) + **`ok`** (Boolean); body = `dist/dify-code-node.js` |
+| If「rules answered?」 | If/Else（If-Else） | `{{#code.ok#}}` **is** `true` → TRUE; note the picker gives you the real node id, not the word `code` |
+| Answer「route」 | Answer（直接回复） | `{{#code.text#}}` |
+| LLM「front desk」 | LLM（大语言模型） | model **deepseek-v4-pro**, temperature **0**, max tokens **240**, no thinking mode |
+| Answer「reply」 | Answer（直接回复） | `{{#llm.text#}}` |
 
 Two rules that make this an honest demo:
 
@@ -193,7 +232,8 @@ Two rules that make this an honest demo:
 
 ### Model
 
-Dify Cloud → **Settings → Model Provider → DeepSeek**; paste the API key
+Dify Cloud → **Settings → Model Provider → DeepSeek**（中文界面：集成 → 模型供应商）;
+paste the API key
 (`base_url` is `https://api.deepseek.com`, OpenAI-compatible). The model ids
 the DeepSeek docs list today are `deepseek-v4-pro` (DeepSeek-V4-Pro-0813) and
 `deepseek-flash` (V4.1-Flash-1017); `deepseek-v4-flash` is still accepted as a
@@ -305,8 +345,8 @@ in the same conversation.
 
 ## 5. Phase 3 — publish, and the checks before you send the link
 
-1. **Publish → Publish Update**. In **Overview**, set the icon, name
-   (`HKUST Campus Guide`) and description; under **Web App** fill in the
+1. **Publish → Publish Update**（发布 → 发布更新）. In **Overview**（概览）, set the icon, name
+   (`HKUST Campus Guide`) and description; under **Web App**（Web 应用）fill in the
    opening message and the suggested questions:
 
    opening: `Ask me how to get anywhere on campus - EN / 中文 / 粵語.`

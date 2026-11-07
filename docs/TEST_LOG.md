@@ -313,3 +313,26 @@ five tips next to it are advice, not instructions. Nothing in it is verified
 against an official calendar yet.
 
 
+### The 简体中文 interface (2026-11-08)
+
+Dify Cloud is being driven with the UI in Chinese, so every button in
+`docs/DIFY.md` now carries its 简体中文 label - taken from Dify's own Chinese
+docs (`docs.dify.ai/zh-hans`), not translated by eye:
+
+- `工作室`, `从空白创建`, `代码`, `输入变量`, `输出变量`, `集成 -> 模型供应商`,
+  `预览`, `发布` - all quoted from the Chinese pages for Studio, the Code node
+  and the Answer node.
+- **One of them is not a translation but a different node.** `Answer` is
+  `直接回复`, and Dify's own docs say "直接回复节点仅适用于 Chatflow 应用。Workflow
+  应用使用结束节点。" Choosing `工作流` at creation time therefore produces a
+  `结束` node and no chat UI at all, and every acceptance check fails for a
+  reason that has nothing to do with the engine. `docs/DIFY.md` now warns
+  about this before step 1.
+- `Chatflow` is left untranslated in the Chinese UI, which is worth knowing
+  before hunting for the word 对话流.
+- Same build re-confirmed before the paste: `dist/dify-code-node.js` 83824
+  bytes, `Engine version: a2762b3892aa`, `check_bundle.js` 112/0,
+  `check_sandbox.js` 32/0 (cold answer 13 ms). Documentation only - no source
+  change, so the engine hash is unchanged.
+
+
