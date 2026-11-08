@@ -1,0 +1,35 @@
+Group 16 · AISC1000A (LA12) — submission text
+Plain text on purpose: select all, copy, paste. One block per field; each
+paragraph is a single line so it pastes as one paragraph, not as broken lines.
+
+=== 1. Two links, one paragraph (English) ===
+
+Group 16's project is delivered as two live links, neither of which requires a login. The Git demo is the full web prototype at https://freefish0904.github.io/freefish-campus-guide/ , where you type a sentence such as "我在图书馆入口，怎么去 LG1 食堂？" and get a numbered indoor route drawn on a floor plan that switches floors as the walkthrough progresses. The Dify demo at https://udify.app/chat/ZAjpRIuJBp2fNQRk is the same application as a chat assistant: the identical routing engine is bundled into a Dify Code node, so every floor, lift number and walking time is still computed by our own JavaScript, and the language model is only invoked for sentences the rules genuinely cannot parse. Because both links run the same engine, they answer identically — ask the same question in both and compare.
+
+=== 2. Same thing, two lines (if the form wants a link per row) ===
+
+Git demo (web prototype): https://freefish0904.github.io/freefish-campus-guide/
+Dify demo (chat app): https://udify.app/chat/ZAjpRIuJBp2fNQRk
+
+Same engine, same answers: the Dify app runs our bundled JavaScript router inside a Code node, so routes, lift numbers and times come from our code, not from the model.
+
+=== 3. 中文版（一段） ===
+
+我们组用两个链接交付，都不用登录、点开即用。Git 网页版是完整原型 https://freefish0904.github.io/freefish-campus-guide/ ：输入「我在图书馆入口，怎么去 LG1 食堂？」就得到逐点室内路线，平面图会随讲解自动换层。Dify 版是同一个引擎的聊天应用 https://udify.app/chat/ZAjpRIuJBp2fNQRk ：那份路由代码原样打包进 Dify 的 Code 节点，楼层、电梯编号、步行时间仍由我们自己的 JavaScript 计算，只有规则确实读不懂的句子才交给大语言模型。两个链接跑的是同一套引擎，答案完全一致，可以同一句话各问一次对照。
+
+=== 4. 五条样例问题（一次一条粘贴） ===
+
+I am at the library entrance, how do I get to LG1 canteen?
+图书馆去游泳池
+nearest toilet from the library entrance
+LG7 食堂去 LG1 食堂 不想走楼梯
+libary to lg 1 canteen pls
+
+=== 5. Three-sentence blurb ===
+
+Freefish Campus Guide is a browser prototype that turns one sentence such as "我在图书馆正门，怎么去 LG1 食堂？" into a numbered indoor route: which lift to take, which floor to cross on, and which skybridge or covered walkway links the buildings. It understands English, Chinese and Cantonese (including typos) and plans on a real graph of corridors, stairs and six lift shafts, with a step-free mode that refuses stairs and compares its cost against the fastest route. Every answer is drawn on a floor plan that switches floors by itself during the walkthrough, and the whole interface can be re-read in the other two languages without losing the route.
+
+=== 6. Links only ===
+
+https://freefish0904.github.io/freefish-campus-guide/
+https://udify.app/chat/ZAjpRIuJBp2fNQRk
