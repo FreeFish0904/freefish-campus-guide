@@ -98,8 +98,14 @@ workflow:
            *   stepFree  boolean  the toggle (optional)
            *   originId  string   place id from an earlier turn (optional)
            *   destId    string   place id from an earlier turn (optional)
-           * The node returns Engine.answer(): ok / kind / text / steps / sec /
-           * metres / lifts / floors / candidates / need / understood.
+           *
+           * Declare exactly these three outputs - Dify compares the count with the
+           * keys main() returns and fails the node with
+           *   "Not all output parameters are validated."
+           * if they differ:
+           *   text      string   the answer, markdown, in the language asked
+           *   kind      string   route | nearest | clarify   <- branch on this
+           *   ok        boolean  true when a route or a nearest POI was found
            * ===================================================================== */
           var __ENGINE = null;
 
@@ -1897,6 +1903,18 @@ workflow:
           }
 
           function main(inputs) {
+            var r = answerFull(inputs);
+            return {
+              text: String(r.text == null ? '' : r.text),
+              kind: String(r.kind == null ? 'clarify' : r.kind),
+              ok: r.ok === true
+            };
+          }
+
+          /* main()'s input mapping, with the whole answer object left intact.
+             Dify never reaches this - the outputs would not match - but the tests
+             use it to see lang / stepFree / originId / destId. */
+          function answerFull(inputs) {
             inputs = inputs || {};
             var lang = inputs.lang || 'auto';
             var stepFree = inputs.stepFree;

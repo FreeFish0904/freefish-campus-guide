@@ -130,10 +130,20 @@ function minify(src) {
 function kb(s) { return (Buffer.byteLength(s, 'utf8') / 1024).toFixed(1) + ' KB'; }
 
 /* The exact text a Dify JavaScript Code node wants: everything evaluated
-   once, `main(inputs)` returns the Engine.answer() object. `var __ENGINE`
+   once, `main(inputs)` returns the object Dify can accept. `var __ENGINE`
    at the top of the node file means the 90 KB of data is parsed on the
    first call and reused after that (a Code node is a cached module, but
-   this also works if a sandbox re-evaluates it every time). */
+   this also works if a sandbox re-evaluates it every time).
+
+   `main` returns exactly three keys, not the whole answer: CodeNode.
+   _transform_result counts them (api/core/workflow/nodes/code/code_node.py)
+
+       # check if all output parameters are validated
+       if len(parameters_validated) != len(result):
+           raise CodeNodeError("Not all output parameters are validated.")
+
+   and Engine.answer() returns 21 keys for a route but 12 for a clarify, so
+   no fixed output list can ever match it. Three declared, three returned. */
 function nodeCode() {
   const v = version();
   const src = minify(body(v));
@@ -149,8 +159,14 @@ function nodeCode() {
     ' *   stepFree  boolean  the toggle (optional)',
     ' *   originId  string   place id from an earlier turn (optional)',
     ' *   destId    string   place id from an earlier turn (optional)',
-    ' * The node returns Engine.answer(): ok / kind / text / steps / sec /',
-    ' * metres / lifts / floors / candidates / need / understood.',
+    ' *',
+    ' * Declare exactly these three outputs - Dify compares the count with the',
+    ' * keys main() returns and fails the node with',
+    ' *   "Not all output parameters are validated."',
+    ' * if they differ:',
+    ' *   text      string   the answer, markdown, in the language asked',
+    ' *   kind      string   route | nearest | clarify   <- branch on this',
+    ' *   ok        boolean  true when a route or a nearest POI was found',
     ' * ===================================================================== */',
     'var __ENGINE = null;',
     '',
@@ -166,6 +182,18 @@ function nodeCode() {
     '}',
     '',
     'function main(inputs) {',
+    '  var r = answerFull(inputs);',
+    '  return {',
+    "    text: String(r.text == null ? '' : r.text),",
+    "    kind: String(r.kind == null ? 'clarify' : r.kind),",
+    '    ok: r.ok === true',
+    '  };',
+    '}',
+    '',
+    "/* main()'s input mapping, with the whole answer object left intact.",
+    '   Dify never reaches this - the outputs would not match - but the tests',
+    '   use it to see lang / stepFree / originId / destId. */',
+    'function answerFull(inputs) {',
     '  inputs = inputs || {};',
     "  var lang = inputs.lang || 'auto';",
     '  var stepFree = inputs.stepFree;',

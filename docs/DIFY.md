@@ -52,7 +52,7 @@ Both embed `dist/dify-code-node.js` **verbatim** as the Code node body, so what
 arrives in Dify is the exact file the tests passed. `node tests/check_dsl.js`
 parses both files with PyYAML, compares the parsed code with the file on disk
 byte for byte, walks the graph, resolves every `{{#node.field#}}` reference and
-then executes the parsed code — 196 checks (§1).
+then executes the parsed code — 204 checks (§1).
 
 **Steps**
 
@@ -82,6 +82,13 @@ sed -i '' 's/^version: .*/version: 0.7.0/' dist/hkust-guide.dsl.yml
 
 Then import again. Send me the exact error text if it still refuses.
 
+**If the import works and the 引擎 node then fails** with
+`Not all output parameters are validated.`, the Code node body is older than
+this repo's: its `main()` returns the whole `Engine.answer()` object, and Dify
+counts what a Code node returns against the outputs you declared. Rebuild both
+files (`node tools/bundle_engine.js && node tools/make_dsl.js`) and import
+again — the current `main()` returns exactly `text`, `kind`, `ok`.
+
 **Why 0.2.0 and not 0.7.0:** a version *newer* than the server's is the one
 case where Dify accepts the upload, parks it in Redis and creates nothing. An
 older one only earns a "DSL 版本较旧" warning. There is no per-version
@@ -97,9 +104,9 @@ written explanation for the report, and as plan B if an import is rejected.
 ```bash
 node tools/bundle_engine.js        # writes dist/, prints the engine version
 node tools/make_dsl.js             # writes dist/*.dsl.yml, the files you import
-node tests/check_bundle.js         # 112 checks: fresh, sandbox-safe, byte-identical
+node tests/check_bundle.js         # 116 checks: fresh, sandbox-safe, byte-identical
 node tests/check_sandbox.js        # 32 checks: the pasted node under a hostile box
-node tests/check_dsl.js            # 196 checks: both DSL files parse, wire up and run
+node tests/check_dsl.js            # 204 checks: both DSL files parse, wire up and run
 ```
 
 | file | size | what it is |
@@ -146,7 +153,7 @@ Find out now, not after wiring six nodes.
 
 | | how it is checked | status |
 |---|---|---|
-| the engine is current, sandbox-safe, byte-identical to the browser | `node tests/check_bundle.js` (112 checks) | **green** |
+| the engine is current, sandbox-safe, byte-identical to the browser | `node tests/check_bundle.js` (116 checks) | **green** |
 | the pasted file survives strict mode, no `console`, junk inputs, the 5-level / 400k output limits, and repeat calls | `node tests/check_sandbox.js` (32 checks, cold answer ~13 ms) | **green** |
 | Dify Cloud accepts an 82 KB Code node at all | a human clicking paste | **unknown** |
 | Dify's own JS runtime matches Node's for this code | the sandbox above is a proxy, not Dify | **unknown** |
@@ -222,19 +229,36 @@ one mistake that produces a puzzling syntax error instead of a size error.
    same as empty, and the engine detects the language itself.
 4. **Paste** into the code box (⌘V once). The first line should read
    `/* =====...` and `Dify Code node (JavaScript) - GENERATED FILE`.
-5. **Output Variables**（输出变量）— the step that bites everyone. Add exactly:
+5. **Output Variables**（输出变量）— the step that bites everyone. Add exactly
+   these three, no more and no fewer:
 
-   | name | type |
-   |---|---|
-   | `text` | String |
-   | `ok` | Boolean |
+   | name | type | what it is |
+   |---|---|---|
+   | `text` | String | the answer the 直接回复 node prints (markdown) |
+   | `kind` | String | `route` / `nearest` / `clarify` — branch on this |
+   | `ok` | Boolean | `true` when a route or the nearest POI was found |
 
-   `text` is what the Answer node prints. `ok` is what the If/Else in Phase 1
-   branches on. (The node returns 20 more fields; add the ones you reference,
-   or Dify will not offer them downstream.)
+   **The count has to match, in both directions.** `CodeNode._transform_result`
+   ends with
+
+   ```python
+   if len(parameters_validated) != len(result):
+       raise CodeNodeError("Not all output parameters are validated.")
+   ```
+
+   so a declared output the code never returns fails the node — and so does a
+   key the code returns that you did not declare. `main()` therefore returns
+   exactly `{text, kind, ok}` and nothing else, dropping the other fields
+   (`sec`, `steps`, `lifts`, `originId`, …) that `Engine.answer()` produces.
+   If you later want one of them downstream, return it from `main()` as a
+   fourth key **and** declare a fourth output: the two lists stay equal or the
+   run stops with that error. The full object is still one call away —
+   `answerFull(inputs)` in the same file — just not through the node's outputs.
 6. **Run this node**（运行）in the node's own debug panel with
-   `query = library entrance to lg 1 canteen`. Expect `ok: true`, `sec: 192`,
-   `lifts: []`, and `text` starting `**Library Entrance → LG1 Canteen (Maxim's)**`.
+   `query = library entrance to lg 1 canteen`. Expect `ok: true`,
+   `kind: route`, and `text` starting `**Library Entrance → LG1 Canteen
+   (Maxim's)**`. (The 192 s and the empty lift list are in that text; the
+   separate `sec` / `lifts` fields are not declared outputs any more.)
 7. Add an **Answer** node（直接回复）after the Code node. In its text box type `/` or click
    `{x}` → **Code** → **text**, so the reference is `{{#<node>.text#}}`. Do not
    hand-type the node id.
@@ -279,8 +303,8 @@ Start ─► Code「engine」 ─► If「rules answered?」 ─► Answer「rou
 | node | type | settings |
 |---|---|---|
 | Start | Start（开始） | only `sys.query` is used |
-| Code「engine」 | Code（代码）, JavaScript | input `query` = `{{#sys.query#}}`; outputs **`text`** (String) + **`ok`** (Boolean); body = `dist/dify-code-node.js` |
-| If「rules answered?」 | If/Else（If-Else） | `{{#code.ok#}}` **is** `true` → TRUE; note the picker gives you the real node id, not the word `code` |
+| Code「engine」 | Code（代码）, JavaScript | input `query` = `{{#sys.query#}}`; outputs **`text`** (String) + **`kind`** (String) + **`ok`** (Boolean), all three and nothing else; body = `dist/dify-code-node.js` |
+| If「rules answered?」 | If/Else（If-Else） | `{{#code.kind#}}` **is not** `clarify` → TRUE, or `{{#code.ok#}}` **is** `true` if you prefer the boolean; note the picker gives you the real node id, not the word `code` |
 | Answer「route」 | Answer（直接回复） | `{{#code.text#}}` |
 | LLM「front desk」 | LLM（大语言模型） | model **chatgpt5.6sol** (whatever your dropdown offers), temperature **0**, max tokens **240**, no thinking mode, 记忆 off |
 | Answer「reply」 | Answer（直接回复） | `{{#llm.text#}}` |

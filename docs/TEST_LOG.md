@@ -348,17 +348,18 @@ Dify can import an app from a YAML file instead. Two files are now generated:
   Answer, so "I did not understand" goes to the model.
 - `tools/make_dsl.js` writes both from `dist/dify-code-node.js`, so the Code
   node body is the tested file verbatim, not a copy that can drift.
-- `tests/check_dsl.js`: 196 checks. PyYAML (the parser Dify itself calls)
+- `tests/check_dsl.js`: 204 checks. PyYAML (the parser Dify itself calls)
   parses both files; the parsed code is compared byte for byte with
   `dist/dify-code-node.js`; edge ids, edge `sourceType`/`targetType` and the
   If/Else `sourceHandle: 'true'` / `'false'` labels are checked against the
   nodes; every `{{#node.field#}}` in an Answer or a prompt must resolve to a
   node that exists and an output it declares; the graph must be reachable from
   Start, acyclic, and every path must end in an Answer node. Then the parsed
-  code is compiled (`new Function(body + '\nreturn main;')`) and the app's own
-  five starter questions are run through it: every declared output must be
-  present and correctly typed, and none of the chips may fall to the model
-  branch. `tests/browser_check.py` runs it alongside the other two.
+  code is compiled (`new Function(body + '\nreturn {main, answerFull};')`) and
+  the app's own five starter questions are run through it: `main()` must return
+  exactly the declared keys, each with the declared type, and none of the chips
+  may fall to the model branch. `tests/browser_check.py` runs it alongside the
+  other two.
 
 What the checks were tested against - three deliberate breakages, each caught:
 `version: 0.8.0` (newer than Dify main's 0.7.0, which makes the import come
@@ -367,7 +368,39 @@ pointing at a node that does not exist, and one character changed inside the
 embedded engine (18 failures, and the runner prints findings instead of a stack
 trace).
 
-### Choosing the DSL `version:`
+### Bugs found and fixed in this pass
+
+- **"Not all output parameters are validated."** The first import failed on the
+  Code node after 230 ms — it *ran*, and then Dify refused the result. The
+  message is the last two lines of `_transform_result` in
+  `api/core/workflow/nodes/code/code_node.py`:
+
+  ```python
+  # check if all output parameters are validated
+  if len(parameters_validated) != len(result):
+      raise CodeNodeError("Not all output parameters are validated.")
+  ```
+
+  It is a **count**, not a subset: the three declared outputs were fine and
+  present, and the node still failed because `main()` returned all 21 keys of
+  `Engine.answer()`. No output list could have been right either —
+  `Engine.answer()` returns 21 keys for a route, 23 for a nearest-POI answer
+  and 12 for a clarify, so the count changes per branch. `main()` now returns
+  exactly `{text, kind, ok}` and the mapping moved into `answerFull(inputs)`,
+  which the tests call when they need `lang` / `stepFree` / `originId` /
+  `destId`. Caught afterwards in three places: `check_dsl.js` compares the
+  returned key set with the declared outputs on every question (reverting
+  `main()` to return the whole answer fails 9 checks and names both lists),
+  `check_sandbox.js` asserts the three-key shape on a route, a nearest-POI
+  answer and a clarify, and `check_bundle.js` does the same against the bundle.
+
+  The same trap was in the hand-built instructions: step 5 said "declare
+  `text` + `ok`, the node returns 20 more fields, add the ones you reference".
+  That advice cannot work, for the same reason. `docs/DIFY.md` now says
+  *exactly three, no more and no fewer*, quotes the check, and explains how to
+  add a fourth (return it **and** declare it).
+
+
 
 `api/services/dsl_version.py` compares the imported version with the server's:
 newer or a different major -> `PENDING` (the payload is parked in Redis and
@@ -393,5 +426,5 @@ coercion, and a string comparison has none. The Code node declares `text`
 three are present on every branch, because Dify fails a Code node whose
 declared output cannot be extracted.
 
-Current, end to end: `check_bundle.js` 112/0, `check_sandbox.js` 32/0,
-`check_dsl.js` 196/0, smoke 30/0, fonts 921/0, layout 2092/0 + 1762/0.
+Current, end to end: `check_bundle.js` 116/0, `check_sandbox.js` 42/0,
+`check_dsl.js` 204/0, smoke 30/0, fonts 921/0, layout 2092/0 + 1762/0.

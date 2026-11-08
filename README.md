@@ -176,9 +176,9 @@ escalator is 22 s. Step-free mode removes every edge flagged
 ```bash
 node tests/check_graph.js     # data integrity: both campuses + the checklist
 node tests/run_tests.js       # 49 cases / 641 assertions -> docs/TEST_RESULTS.md
-node tests/check_bundle.js    # Dify bundle: fresh, sandbox-safe, 112 checks
+node tests/check_bundle.js    # Dify bundle: fresh, sandbox-safe, 116 checks
 node tests/check_sandbox.js   # the pasted Code node under a hostile sandbox
-node tests/check_dsl.js       # both importable DSL files: parse, wire, run, 196 checks
+node tests/check_dsl.js       # both importable DSL files: parse, wire, run, 204 checks
 node tools/bundle_engine.js   # rebuild dist/ after touching src/ (then re-run above)
 node tools/make_dsl.js        # rebuild dist/*.dsl.yml after rebuilding the bundle
 python3 tests/browser_check.py  # the bundle check + smoke + fonts + layout
@@ -198,7 +198,7 @@ build. `check_sandbox.js` then loads the exact file that gets pasted into Dify
 behind `"use strict"` in a context with no `console`, and feeds it the things a
 form can send: `undefined`, `null`, a number, an object, 20 000 characters, an
 empty `lang`, a boolean that arrives as the string `'false'`. Current:
-**12 golden questions, 112 bundle checks + 32 sandbox checks, 0 failures**.
+**12 golden questions, 116 bundle checks + 42 sandbox checks, 0 failures**.
 
 `check_dsl.js` is the guard for the two files you actually import into Dify
 (`dist/hkust-guide.dsl.yml`, 3 nodes, no model; `dist/hkust-guide-chatgpt.dsl.yml`,
@@ -209,8 +209,12 @@ every `{{#node.field#}}` resolves to a node and an output that node declares,
 that every path from Start ends in an Answer node with no cycle, and that the
 `version:` line cannot make Dify park the import in `PENDING`. Finally it
 compiles the parsed body and runs the app's own five starter questions through
-it, requiring every declared output to be present and correctly typed — a chip
-that falls through to the model branch fails the build. **196 checks.**
+it, requiring every declared output to be present and correctly typed — and
+requiring `main()` to return **exactly** those three keys, because Dify's Code
+node compares the count and fails the run with "Not all output parameters are
+validated." on any difference. A chip that falls through to the model branch
+fails the build. **204 checks.**
+
 
 `layout_check.html` measures every `<text>` with `getBBox()` after each render
 and fails if a label touches another label, a lift box, a POI dot, the route

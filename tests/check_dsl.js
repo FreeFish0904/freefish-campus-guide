@@ -286,6 +286,7 @@ if (docs.length === 2) {
 
 /* ---- run the parsed code the way Dify runs it ------------------------- */
 let main = null;
+let full = null;
 if (docs.length) {
   /* a chip that needs the model is a broken first impression: every chip
      the app ships is run below and must be answered by the rules branch */
@@ -299,7 +300,9 @@ if (docs.length) {
 
   const body = docs[0].doc.workflow.graph.nodes[1].data.code;
   try {
-    main = new Function(body + '\nreturn main;')();
+    const api = new Function(body + '\nreturn { main: main, answerFull: answerFull };')();
+    main = api.main;
+    full = api.answerFull;
   } catch (e) {
     ok('run / compiles', false, 'the Code node body does not compile: ' + e.message);
   }
@@ -308,12 +311,22 @@ if (docs.length) {
 
   if (typeof main === 'function') {
     const declared = docs[0].doc.workflow.graph.nodes[1].data.outputs;
+    const want = Object.keys(declared).sort().join(',');
     ASK.forEach(function (q) {
       let r;
       try { r = main({ query: q }); }
       catch (e) { ok('run [' + q + ']', false, 'threw: ' + e.message); return; }
       ok('run [' + q + ']', r && typeof r === 'object', 'returned ' + typeof r);
       if (!r) { return; }
+      /* Dify's own rule (CodeNode._transform_result):
+           if len(parameters_validated) != len(result):
+               raise CodeNodeError("Not all output parameters are validated.")
+         so this is a count, not a subset - one extra key fails the node in
+         exactly the same way as a missing one. */
+      ok('run [' + q + '] / outputs',
+         Object.keys(r).sort().join(',') === want,
+         'main() must return exactly the declared outputs (' + want + '), got ' +
+         Object.keys(r).join(',') + ' - Dify fails the node on a count mismatch');
       Object.keys(declared).forEach(function (k) {
         ok('run [' + q + '] / ' + k, k in r,
            'declared output "' + k + '" is missing from the result - Dify ' +
@@ -340,8 +353,12 @@ if (docs.length) {
       try { return main({ query: q }); }
       catch (e) { ok('call [' + q + ']', false, 'threw: ' + e.message); return null; }
     }
+    function askFull(q) {
+      try { return full({ query: q }); }
+      catch (e) { ok('call [' + q + ']', false, 'threw: ' + e.message); return null; }
+    }
 
-    const known = ask('library entrance to lg 1 canteen') || {};
+    const known = askFull('library entrance to lg 1 canteen') || {};
     ok('run / 192 s', known.ok === true && known.sec === 192,
        'wrong route for the documented example: ok=' + known.ok +
        ' sec=' + known.sec);
@@ -358,8 +375,9 @@ if (docs.length) {
     const b = ask('from lg7 canteen to a 3f classroom no stairs');
     ok('run / deterministic', JSON.stringify(a) === JSON.stringify(b),
        'two identical calls returned different results');
-    ok('run / no mutation', !!a && Object.keys(a).length > 3,
-       'the answer object looks truncated');
+    ok('run / no extras', !!a && Object.keys(a).sort().join(',') === 'kind,ok,text',
+       'main() must return the declared three and nothing else, got ' +
+       (a ? Object.keys(a).join(',') : String(a)));
   }
 }
 

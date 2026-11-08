@@ -292,14 +292,33 @@ const call2 = nodeCtx.main({ query: 'library entrance to lg 1 canteen', lang: 'a
 ok('node', call1.text === E.answer('library entrance to lg 1 canteen').text,
    'main() must answer like Engine.answer()');
 ok('node', call2.text === call1.text, 'main() must be repeatable (engine is cached)');
-ok('node', nodeCtx.main({ query: 'nearest toilet', originId: 'ust-lg7-canteen' }).kind === 'nearest',
-   'main() must forward originId');
+
+/* Dify counts what main() returns against the outputs the node declares -
+   CodeNode._transform_result raises "Not all output parameters are validated."
+   when the two differ - and Engine.answer() changes shape between branches,
+   so the count has to hold on every one of them. */
+[['library entrance to lg 1 canteen', {}, 'route'],
+ ['nearest toilet', { originId: 'ust-lg7-canteen' }, 'nearest'],
+ ['', {}, 'clarify']].forEach(function (s) {
+  const r = nodeCtx.main(Object.assign({ query: s[0] }, s[1]));
+  const keys = Object.keys(r).sort().join(',');
+  ok('node', r.kind === s[2] && keys === 'kind,ok,text',
+     'main() on a ' + s[2] + ' must return exactly text/kind/ok, got ' + keys +
+     ' (' + r.kind + ')');
+});
+
+ok('node', nodeCtx.answerFull({ query: 'nearest toilet', originId: 'ust-lg7-canteen' }).kind
+             === 'nearest', 'main() must forward originId');
 ok('node', nodeCtx.main({ query: 'library entrance to lg 1 canteen', lang: 'zh' })
              .text.indexOf('食堂') >= 0, 'main() must forward lang');
-ok('node', nodeCtx.main({ query: 'from lg7 canteen to a 3f classroom', stepFree: 'false' }).stepFree === false,
+ok('node', nodeCtx.answerFull({ query: 'from lg7 canteen to a 3f classroom', stepFree: 'false' })
+             .stepFree === false,
    "stepFree:'false' from a Dify input must turn the toggle off");
 ok('node', nodeCtx.main({}).kind === 'clarify', 'an empty query must ask for help, not throw');
 ok('node', jsonProblem(call1, 0, 'main') === null, 'main() output must be JSON-safe');
+ok('node', jsonProblem(nodeCtx.answerFull({ query: 'library entrance to lg 1 canteen' }),
+                       0, 'answerFull') === null,
+   'the whole answer object must stay JSON-safe too');
 
 /* ---- report ---------------------------------------------------------- */
 
