@@ -12,6 +12,13 @@ What the brief asks for, and where it is:
 Everything above is a file in <https://github.com/FreeFish0904/freefish-campus-guide>,
 next to the code it describes, so the log can be re-run rather than believed.
 
+Two links, both live and both openable without an account:
+
+* **Web demo** — the full prototype (map, floor plan, step-free toggle,
+  checklist): <https://freefish0904.github.io/freefish-campus-guide/>
+* **Dify demo** — the same routing engine as a chat app:
+  <https://udify.app/chat/ZAjpRIuJBp2fNQRk>
+
 ## 1. Demo link
 
 **<https://freefish0904.github.io/freefish-campus-guide/>**
@@ -54,9 +61,11 @@ import. The LLM (`gpt-5.6-sol`) only handles the sentences the rules refuse to
 guess at, and the route branch never touches the model: with the model
 switched off, every wayfinding answer still works.
 
-> Dify Web App link: **«paste `https://udify.app/chat/…` here after 发布»**
-> The app is imported and every node runs (2026-11-08); the publish click is
-> the only step left — `docs/DIFY.md` §5.
+> Dify Web App: **<https://udify.app/chat/ZAjpRIuJBp2fNQRk>**
+> Published 2026-11-08. One app, one chat box, no login. Ask it any of the five
+> questions in §3: the route branch runs the bundled engine inside a Code node,
+> so the reply is the same text the web app prints — the model only answers when
+> the rules say "I don't know what you mean".
 
 
 ## 2. Test log (~300 words)
