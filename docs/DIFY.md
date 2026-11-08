@@ -1,7 +1,9 @@
 # Putting the guide on Dify Cloud
 
-**Status: S1 done (engine bundle + DSL files); the Dify import is waiting on one click.**
+**Status: imported, and every node runs (2026-11-08). 发布 → 发布更新 and the
+chat link are the last two clicks (`§ 5`).**
 Live web app: <https://freefish0904.github.io/freefish-campus-guide/>
+Dify Web App link: `«paste https://udify.app/chat/… here after 发布»`
 
 This is route B: Dify hosts the chat and the model, **the existing JavaScript
 engine computes the routes**. The model never writes a number, a floor, a

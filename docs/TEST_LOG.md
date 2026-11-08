@@ -437,5 +437,15 @@ model separately, and the dropdown only shows the model, so a workspace that
 registers OpenAI models under another provider name would need the one click on
 **模型** to rewrite it. Nothing else in the file refers to the model.
 
+### The five sample queries moved to the submitted map
+
+The old five sample queries in `docs/SAMPLE_QUERIES.md` were written against the
+fictional demo campus, so a marker typing them into the submitted link (which
+loads HKUST) got "which place do you mean?" for LT-1 and Lab 402. The five that
+head the file now are HKUST questions with EN / 中文 / 粵語 wordings and the
+numbers printed by `Engine.answer()` from `dist/dify-code-node.js` — the same
+code the Dify node runs, so the page and the chat link cannot drift. The demo
+five stay below them, where the 49-case suite pins their routes exactly.
+
 Current, end to end: `check_bundle.js` 116/0, `check_sandbox.js` 42/0,
 `check_dsl.js` 204/0, smoke 30/0, fonts 921/0, layout 2092/0 + 1762/0.

@@ -1,5 +1,17 @@
 # Submission sheet
 
+What the brief asks for, and where it is:
+
+| # | item | where |
+|---|---|---|
+| 1 | a working demo, one click, no login | **§1** — the GitHub Pages link, live now; the Dify chat link is the last line of §1 |
+| 2 | a test log, ~300 words | `docs/TEST_LOG.md` — §2 says how to re-run every check in it |
+| 3 | five sample queries | `docs/SAMPLE_QUERIES.md`, repeated in §3 |
+| 4 | a three-sentence blurb | the last section |
+
+Everything above is a file in <https://github.com/FreeFish0904/freefish-campus-guide>,
+next to the code it describes, so the log can be re-run rather than believed.
+
 ## 1. Demo link
 
 **<https://freefish0904.github.io/freefish-campus-guide/>**
@@ -35,38 +47,51 @@ need `&data=demo` in front of them or the app will ask which place you mean.
 (`node tools/bundle_engine.js` → `dist/dify-code-node.js`) and runs inside a
 Dify Code node, so the Dify app and this web app return **the same route
 text, byte for byte** — asserted by `tests/check_bundle.js`, twelve questions
-in three languages. The LLM (DeepSeek) only handles the sentences the rules
-refuse to guess at, and the route branch never touches the model: with the
-model switched off, every wayfinding answer still works.
+in three languages. The Code node may return exactly the three outputs it
+declares (`text`, `kind`, `ok`): Dify compares the *number* of keys returned
+against the declared list, not the names, which is what failed the first
+import. The LLM (`gpt-5.6-sol`) only handles the sentences the rules refuse to
+guess at, and the route branch never touches the model: with the model
+switched off, every wayfinding answer still works.
 
-> Dify Web App link: *pending — Phase 0 of `docs/DIFY.md`*
+> Dify Web App link: **«paste `https://udify.app/chat/…` here after 发布»**
+> The app is imported and every node runs (2026-11-08); the publish click is
+> the only step left — `docs/DIFY.md` §5.
 
 
 ## 2. Test log (~300 words)
 
-`docs/TEST_LOG.md` — what was tested, how to re-run it, and the five bugs the
-tests caught. Raw output: `docs/TEST_RESULTS.md` (49 cases, 566 assertions,
+`docs/TEST_LOG.md` — what was tested, how to re-run it, and the 22 bugs the
+tests caught. Raw output: `docs/TEST_RESULTS.md` (49 cases, 641 assertions,
 0 failures).
 
 ```bash
-node tests/check_graph.js     # data integrity
-node tests/run_tests.js       # 49 cases -> docs/TEST_RESULTS.md
-open tests/smoke.html         # 17 UI checks in a real browser
+node tests/check_graph.js     # data integrity, both campuses
+node tests/run_tests.js       # 49 cases -> 641 assertions -> docs/TEST_RESULTS.md
+node tests/check_bundle.js    # 116: the Dify Code node is byte-identical
+node tests/check_sandbox.js   # 42: strict mode, no console, junk input, size limits
+node tests/check_dsl.js       # 204: both DSL files parse, wire up, and run
+open tests/smoke.html         # UI, in a real browser (also font + layout checks)
 ```
 
 ## 3. Five sample queries
 
-`docs/SAMPLE_QUERIES.md` — each one lists the exact wording in EN / 中文 /
-粵語, what it is meant to prove, and the answer the current build returns.
-Those five are written against the fictional demo campus; the five HKUST
-questions are the cards on screen, e.g. *Library entrance → LG1 Canteen*
-(3 min 12 s, no lift) and *LG7 Canteen → LT-A* (two lift banks).
+`docs/SAMPLE_QUERIES.md` — each one gives the exact wording in EN / 中文 / 粵語,
+what it is meant to prove, and the answer the current build returns. All five
+run on the default HKUST map, so they work on the submitted link exactly as
+typed:
 
-1. `I am at the Library main entrance, how do I get to LT-1?`
-2. `我在学生活动中心 LG1 的咖啡店，要去工程附楼 7 楼的高级机器人实验室，不想走楼梯`
-3. `Where's the nearest restroom? I'm in the Atrium.`
-4. `圖書館去 Lab 402 最快點行？`
-5. `libary entraince to lt 1 pls`
+1. `I am at the library entrance, how do I get to LG1 canteen?` —
+   **3 min 12 s**, 260 m, no lift (中文 and 粵語 wordings in the file)
+2. `图书馆去游泳池` — **10 min 54 s**, 790 m, Lift 1 then Lift 9
+3. `nearest toilet from the library entrance` — Restroom (Library),
+   **3 min 46 s**, one lift
+4. `LG7 食堂去 LG1 食堂 不想走楼梯` — **3 min 1 s**, 170 m, one lift, no stairs
+5. `libary to lg 1 canteen pls` — *"I read "libary" as library."*, then the same
+   **3 min 12 s** as query 1
+
+The same file also keeps five demo-campus variants under `&data=demo` (LT-1,
+Lab 402), because those are the routes the 49-case suite asserts exactly.
 
 ## Blurb (three sentences)
 
