@@ -8,6 +8,9 @@ Run the browser-side checks in headless Chrome, plus the Dify bundle check.
                                and answers exactly like the browser build
   node tests/check_sandbox.js  the pasted Code node survives a strict, bare,
                                console-less context and anything as inputs
+  node tests/check_dsl.js      the two importable DSL files parse (PyYAML, the
+                               parser Dify uses), every reference resolves and
+                               the embedded code still answers
   tests/smoke.html         drives the real UI (21 checks, both campuses)
   tests/layout_check.html  measures every label on every floor (?data=demo
                            and ?data=ust), 0 collisions required
@@ -96,6 +99,18 @@ def main():
                 print('  ' + l)
         if sandbox.stderr.strip():
             print('  ' + sandbox.stderr.strip().splitlines()[-1])
+
+    dsl = subprocess.run(['node', 'tests/check_dsl.js'], cwd=ROOT,
+                         capture_output=True, text=True)
+    lines = [l for l in dsl.stdout.strip().splitlines() if l]
+    print('check_dsl.js: ' + (lines[-1] if lines else 'NO OUTPUT'))
+    if dsl.returncode != 0:
+        failed += 1
+        for l in lines:
+            if l.startswith('FAIL'):
+                print('  ' + l)
+        if dsl.stderr.strip():
+            print('  ' + dsl.stderr.strip().splitlines()[-1])
 
     smoke = load('tests/smoke.html')
     print('smoke.html: ' + (smoke.splitlines()[0] if smoke else 'NO RESULT'))

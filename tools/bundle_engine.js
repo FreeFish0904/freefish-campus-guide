@@ -17,6 +17,9 @@
  *   engine_api.js       the Engine wrapper (parse / route / answer)
  *
  * --check rebuilds in memory and exits 1 if dist/ is stale, without writing.
+ *
+ * After a rebuild, run `node tools/make_dsl.js`: it re-embeds the new
+ * dist/dify-code-node.js in the two importable DSL files.
  * ===================================================================== */
 'use strict';
 

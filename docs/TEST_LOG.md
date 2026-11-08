@@ -336,3 +336,62 @@ docs (`docs.dify.ai/zh-hans`), not translated by eye:
   change, so the engine hash is unchanged.
 
 
+
+### The DSL import pass (2026-11-08)
+
+Building eight nodes by hand in a Chinese UI is a bad use of a demo slot, and
+Dify can import an app from a YAML file instead. Two files are now generated:
+
+- `dist/hkust-guide.dsl.yml` - Start -> Code (engine) -> Answer. Three nodes,
+  no model, no provider, nothing to configure. This is the one to import.
+- `dist/hkust-guide-chatgpt.dsl.yml` - the same plus If/Else -> Answer / LLM ->
+  Answer, so "I did not understand" goes to the model.
+- `tools/make_dsl.js` writes both from `dist/dify-code-node.js`, so the Code
+  node body is the tested file verbatim, not a copy that can drift.
+- `tests/check_dsl.js`: 196 checks. PyYAML (the parser Dify itself calls)
+  parses both files; the parsed code is compared byte for byte with
+  `dist/dify-code-node.js`; edge ids, edge `sourceType`/`targetType` and the
+  If/Else `sourceHandle: 'true'` / `'false'` labels are checked against the
+  nodes; every `{{#node.field#}}` in an Answer or a prompt must resolve to a
+  node that exists and an output it declares; the graph must be reachable from
+  Start, acyclic, and every path must end in an Answer node. Then the parsed
+  code is compiled (`new Function(body + '\nreturn main;')`) and the app's own
+  five starter questions are run through it: every declared output must be
+  present and correctly typed, and none of the chips may fall to the model
+  branch. `tests/browser_check.py` runs it alongside the other two.
+
+What the checks were tested against - three deliberate breakages, each caught:
+`version: 0.8.0` (newer than Dify main's 0.7.0, which makes the import come
+back `PENDING` and creates no app), `code_language: python3`, `{{#9000000000009.text#}}`
+pointing at a node that does not exist, and one character changed inside the
+embedded engine (18 failures, and the runner prints findings instead of a stack
+trace).
+
+### Choosing the DSL `version:`
+
+`api/services/dsl_version.py` compares the imported version with the server's:
+newer or a different major -> `PENDING` (the payload is parked in Redis and
+**no app is created**); lower minor -> `COMPLETED_WITH_WARNINGS`; equal ->
+`COMPLETED`. Dify's main branch declares `0.7.0`. The files therefore say
+`0.2.0`: it cannot be newer than Cloud, so the import always completes. It is
+also above `0.1.5`, the cut-off below which `AppDslService` re-derives plugin
+dependencies from the graph and can stop at an "install these plugins" step
+naming a model provider we cannot know. There is no per-version migration code
+in `app_dsl_service.py`, so the number changes only that status - the node
+shape is the current one, taken from `web/app/components/workflow/nodes/*/default.ts`
+and from real exported DSLs (a start/code/if-else/answer/llm Chatflow), not
+from memory.
+
+### Branching on `kind`, not on `ok`
+
+The hand-built instructions branch on `{{#code.ok#}} is true`; the files branch
+on `{{#code.kind#}} is not 'clarify'`. Both are the same decision (the engine
+sets `kind: 'clarify'` exactly when it could not route). The files use the
+string because a boolean has to survive YAML plus the condition engine's
+coercion, and a string comparison has none. The Code node declares `text`
+(string), `kind` (string) and `ok` (boolean) as outputs; the test asserts all
+three are present on every branch, because Dify fails a Code node whose
+declared output cannot be extracted.
+
+Current, end to end: `check_bundle.js` 112/0, `check_sandbox.js` 32/0,
+`check_dsl.js` 196/0, smoke 30/0, fonts 921/0, layout 2092/0 + 1762/0.

@@ -121,7 +121,8 @@ src/tasks.js            the checklist drawer: ticks, progress, Go
 404.html                GitHub Pages fallback: a wrong path sends you to the app
 tools/bundle_engine.js  builds dist/: the browser scripts + engine_api.js
 tools/engine_api.js     Engine.parse / route / nearest / answer, the Dify surface
-dist/                   generated: dify-engine.js, .min.js, dify-code-node.js
+tools/make_dsl.js       builds dist/*.dsl.yml: the one-click Dify import files
+dist/                   generated: dify-engine.js, .min.js, dify-code-node.js, *.dsl.yml
 tests/                  graph + data checkers, 49-case suite, bundle + browser checks
 docs/                   test log, sample queries, deploy + Dify guides, screenshots
 ```
@@ -177,7 +178,9 @@ node tests/check_graph.js     # data integrity: both campuses + the checklist
 node tests/run_tests.js       # 49 cases / 641 assertions -> docs/TEST_RESULTS.md
 node tests/check_bundle.js    # Dify bundle: fresh, sandbox-safe, 112 checks
 node tests/check_sandbox.js   # the pasted Code node under a hostile sandbox
+node tests/check_dsl.js       # both importable DSL files: parse, wire, run, 196 checks
 node tools/bundle_engine.js   # rebuild dist/ after touching src/ (then re-run above)
+node tools/make_dsl.js        # rebuild dist/*.dsl.yml after rebuilding the bundle
 python3 tests/browser_check.py  # the bundle check + smoke + fonts + layout
 open tests/smoke.html         # 30 UI checks, driven in a real browser
 open tests/layout_check.html  # label layout: every floor x language x scenario
@@ -196,6 +199,18 @@ behind `"use strict"` in a context with no `console`, and feeds it the things a
 form can send: `undefined`, `null`, a number, an object, 20 000 characters, an
 empty `lang`, a boolean that arrives as the string `'false'`. Current:
 **12 golden questions, 112 bundle checks + 32 sandbox checks, 0 failures**.
+
+`check_dsl.js` is the guard for the two files you actually import into Dify
+(`dist/hkust-guide.dsl.yml`, 3 nodes, no model; `dist/hkust-guide-chatgpt.dsl.yml`,
+6 nodes with the model fallback). It parses them with **PyYAML — the parser
+Dify uses**, not a regex — then asserts the Code node body is byte-identical to
+`dist/dify-code-node.js`, that edge handles match the If/Else `case_id`s, that
+every `{{#node.field#}}` resolves to a node and an output that node declares,
+that every path from Start ends in an Answer node with no cycle, and that the
+`version:` line cannot make Dify park the import in `PENDING`. Finally it
+compiles the parsed body and runs the app's own five starter questions through
+it, requiring every declared output to be present and correctly typed — a chip
+that falls through to the model branch fails the build. **196 checks.**
 
 `layout_check.html` measures every `<text>` with `getBBox()` after each render
 and fails if a label touches another label, a lift box, a POI dot, the route

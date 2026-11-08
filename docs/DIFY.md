@@ -1,6 +1,6 @@
 # Putting the guide on Dify Cloud
 
-**Status: S1 done (engine bundle), S0 (Dify clicking) not started.**
+**Status: S1 done (engine bundle + DSL files); the Dify import is waiting on one click.**
 Live web app: <https://freefish0904.github.io/freefish-campus-guide/>
 
 This is route B: Dify hosts the chat and the model, **the existing JavaScript
@@ -20,7 +20,7 @@ Code「engine」          dist/dify-code-node.js  — parse + route + render
    └── answer.ok = false
           │
           ▼
-       LLM「front desk」  DeepSeek — only for "I don't know what you mean"
+       LLM「front desk」  chatgpt5.6sol — only for "I don't know what you mean"
           │                and campus-life questions
           ▼
        Answer: {{llm.text}}
@@ -37,19 +37,82 @@ Two consequences worth saying out loud in the report:
 
 ---
 
+## 0. Import the app instead of building it
+
+Dify can create an app from a YAML file (**工作室 → 创建应用 → 导入 DSL 文件**;
+English UI: Studio → Import DSL File). Two files are built for that. You need
+one, not both.
+
+| file | nodes | model | use it when |
+|---|---|---|---|
+| `dist/hkust-guide.dsl.yml` | 开始 → 引擎 → 直接回复 (3) | **none** | **default.** Import, publish, done. Works with no credits and no provider. |
+| `dist/hkust-guide-chatgpt.dsl.yml` | 开始 → 引擎 → If-Else → 直接回复 / 大语言模型 → 直接回复 (6) | `openai` / `gpt-5.6-sol` | you want the model to handle "I did not understand" and campus small talk |
+
+Both embed `dist/dify-code-node.js` **verbatim** as the Code node body, so what
+arrives in Dify is the exact file the tests passed. `node tests/check_dsl.js`
+parses both files with PyYAML, compares the parsed code with the file on disk
+byte for byte, walks the graph, resolves every `{{#node.field#}}` reference and
+then executes the parsed code — 196 checks (§1).
+
+**Steps**
+
+1. Pick a file, download it (or open it and select all).
+2. <https://cloud.dify.ai> → **工作室** → **创建应用** → **导入 DSL 文件**
+   (the button may read 导入 DSL / 导入 DSL 文件 depending on the build),
+   choose the file.
+3. The app opens with the graph already wired and the prompt already written.
+   Nothing to type, no variables to add.
+4. **Model file only:** click the **大语言模型** node → **模型** dropdown → pick
+   the model you actually have (`chatgpt5.6sol`). The file ships with a guess
+   (`openai` / `gpt-5.6-sol`); if that id is not in your workspace the node
+   reads 模型不可用 and this one click fixes it. Tell me the exact id in the
+   dropdown and I will bake it in so even this click disappears.
+5. **发布 → 发布更新**, then **概览 / Web 应用** to set the icon, name and
+   suggested questions — the file already carries the opening line and five
+   starter questions.
+
+**If the import is refused**, the `version:` line is the only suspect. Dify
+compares it with its own and returns `PENDING` — which creates *no app* — when
+the file is newer than the server (see `tools/make_dsl.js` for the rule). The
+file says `0.2.0`, which is older than any 1.x-era Cloud build:
+
+```bash
+sed -i '' 's/^version: .*/version: 0.7.0/' dist/hkust-guide.dsl.yml
+```
+
+Then import again. Send me the exact error text if it still refuses.
+
+**Why 0.2.0 and not 0.7.0:** a version *newer* than the server's is the one
+case where Dify accepts the upload, parks it in Redis and creates nothing. An
+older one only earns a "DSL 版本较旧" warning. There is no per-version
+migration code, so the node shape is unaffected.
+
+The rest of this file builds the same app by hand, node by node. Keep it as the
+written explanation for the report, and as plan B if an import is rejected.
+
+---
+
 ## 1. What the build produces
 
 ```bash
 node tools/bundle_engine.js        # writes dist/, prints the engine version
+node tools/make_dsl.js             # writes dist/*.dsl.yml, the files you import
 node tests/check_bundle.js         # 112 checks: fresh, sandbox-safe, byte-identical
 node tests/check_sandbox.js        # 32 checks: the pasted node under a hostile box
+node tests/check_dsl.js            # 196 checks: both DSL files parse, wire up and run
 ```
 
 | file | size | what it is |
 |---|---|---|
-| `dist/dify-code-node.js` | 82 KB | **paste this into the Code node** — the engine behind `function main(inputs)` |
+| `dist/hkust-guide.dsl.yml` | 103 KB | **import this one** — 3 nodes, no model, nothing to configure |
+| `dist/hkust-guide-chatgpt.dsl.yml` | 108 KB | the same, plus If/Else + LLM + Answer (6 nodes) |
+| `dist/dify-code-node.js` | 82 KB | **paste this into a Code node** if you build by hand — the engine behind `function main(inputs)` |
 | `dist/dify-engine.js` | 104 KB | the same code unwrapped, for `node dist/dify-engine.js` debugging |
 | `dist/dify-engine.min.js` | 74 KB | comments and indentation stripped, if a box complains about size |
+
+The two `.dsl.yml` files are generated from `dist/dify-code-node.js` by
+`node tools/make_dsl.js`; they contain it verbatim, indented as one YAML
+literal block. `node tools/make_dsl.js --check` fails if they are stale.
 
 The bundle is the seven browser scripts in `index.html` load order plus
 `tools/engine_api.js`, hashed into `Engine.version` (printed by the build and
@@ -87,7 +150,7 @@ Find out now, not after wiring six nodes.
 | the pasted file survives strict mode, no `console`, junk inputs, the 5-level / 400k output limits, and repeat calls | `node tests/check_sandbox.js` (32 checks, cold answer ~13 ms) | **green** |
 | Dify Cloud accepts an 82 KB Code node at all | a human clicking paste | **unknown** |
 | Dify's own JS runtime matches Node's for this code | the sandbox above is a proxy, not Dify | **unknown** |
-| the DeepSeek ids below are on *your* provider list | the model dropdown | **unknown** |
+| the model id `chatgpt5.6sol` is in *your* workspace | the model dropdown | **unknown** |
 
 Everything in the first two rows runs on this machine, in a `vm` context with
 nothing in it, which is the closest thing to a Code node that can be tested
@@ -219,7 +282,7 @@ Start ─► Code「engine」 ─► If「rules answered?」 ─► Answer「rou
 | Code「engine」 | Code（代码）, JavaScript | input `query` = `{{#sys.query#}}`; outputs **`text`** (String) + **`ok`** (Boolean); body = `dist/dify-code-node.js` |
 | If「rules answered?」 | If/Else（If-Else） | `{{#code.ok#}}` **is** `true` → TRUE; note the picker gives you the real node id, not the word `code` |
 | Answer「route」 | Answer（直接回复） | `{{#code.text#}}` |
-| LLM「front desk」 | LLM（大语言模型） | model **deepseek-v4-pro**, temperature **0**, max tokens **240**, no thinking mode |
+| LLM「front desk」 | LLM（大语言模型） | model **chatgpt5.6sol** (whatever your dropdown offers), temperature **0**, max tokens **240**, no thinking mode, 记忆 off |
 | Answer「reply」 | Answer（直接回复） | `{{#llm.text#}}` |
 
 Two rules that make this an honest demo:
@@ -230,19 +293,30 @@ Two rules that make this an honest demo:
 2. **The LLM branch never sees a route.** On the FALSE branch the engine found
    nothing to draw, so there is nothing for the model to get wrong.
 
+The imported DSL asks the same question with a string instead of a boolean:
+`{{#code.kind#}}` **is not** `clarify` → TRUE. `kind` is `route` / `nearest` /
+`clarify`, so the decision is identical, and a string comparison has no
+boolean-to-YAML coercion to go wrong. Either is correct; the files use `kind`
+because it fails loudly rather than silently in the wrong branch.
+
 ### Model
 
-Dify Cloud → **Settings → Model Provider → DeepSeek**（中文界面：集成 → 模型供应商）;
-paste the API key
-(`base_url` is `https://api.deepseek.com`, OpenAI-compatible). The model ids
-the DeepSeek docs list today are `deepseek-v4-pro` (DeepSeek-V4-Pro-0813) and
-`deepseek-flash` (V4.1-Flash-1017); `deepseek-v4-flash` is still accepted as a
-legacy alias. Use **`deepseek-v4-pro`** here — it is the one that follows the
-"do not invent a walking time" instruction.
+Your workspace model is **`chatgpt5.6sol`**. The imported DSL ships a guess
+(`provider: openai`, `name: gpt-5.6-sol`); if your dropdown shows a different
+id the node reads 模型不可用, and one click fixes it: open the 大语言模型 node →
+**模型** → `chatgpt5.6sol`. The prompt, the temperature and the output wiring
+survive the change — the model is the only thing that is swapped.
 
-If Dify's list shows `deepseek-v4-pro` with no thinking toggle, that is the
-plain endpoint and is what we want. If it offers a reasoning variant as a
-separate entry, pick the plain one: the answer is at most 60 words.
+Settings that matter, whichever model it is:
+
+* **温度 = 0** — the branch is for a fixed, short reply, not for variety.
+* **最大 token 数 = 240** — the answer is at most three sentences.
+* **记忆 = 关** — every turn is a fresh sentence to the engine; memory would let
+  the model answer from the chat instead of from the router.
+
+Nothing else in the app depends on which model it is: it never sees a route, a
+distance, a lift number or a walking time. That is why the no-model DSL file
+exists — same routing, no provider at all.
 
 ### Prompt for LLM「front desk」
 
@@ -399,7 +473,7 @@ demo; two are the ones that prove the architecture.
 | 4 | `where is the nearest toilet from the piazza?` | "Nearest restroom to Entrance Piazza" + a walk |
 | 5 | `LG5 麦当劳考试周通宵吗` | LLM answers from FACTS, no invented route |
 | 6 | `how long does it take` | asks for both places, invents no number |
-| 7 | **model off** — delete the LLM node or empty the DeepSeek key, republish | checks 1–4 still pass unchanged. This is the fallback path |
+| 7 | **model off** — delete the LLM node, or point it at a model with no credits, and republish | checks 1–4 still pass unchanged. This is the fallback path — and it is exactly the 3-node DSL file |
 | 8 | open the link on a phone, rotate, ask check 1 | readable, steps wrap, no horizontal scroll |
 
 Check 7 is the one to show in the report: it is the difference between "a
