@@ -15,13 +15,13 @@ Start (user message)
    ▼
 Code「engine」          dist/dify-code-node.js  — parse + route + render
    │
-   ├── answer.ok = true ──────────────────────────► Answer: {{engine.text}}
+   ├── code.ok = true ────────────────────────────► Answer: {{engine.text}}
    │                                                (verbatim, no model)
-   └── answer.ok = false
+   └── code.ok = false
           │
           ▼
-       LLM「front desk」  chatgpt5.6sol — only for "I don't know what you mean"
-          │                and campus-life questions
+       LLM「front desk」  openai / gpt-5.6-sol — only for "I don't know what
+          │                you mean" and campus-life questions
           ▼
        Answer: {{llm.text}}
 ```
@@ -62,11 +62,12 @@ then executes the parsed code — 204 checks (§1).
    choose the file.
 3. The app opens with the graph already wired and the prompt already written.
    Nothing to type, no variables to add.
-4. **Model file only:** click the **大语言模型** node → **模型** dropdown → pick
-   the model you actually have (`chatgpt5.6sol`). The file ships with a guess
-   (`openai` / `gpt-5.6-sol`); if that id is not in your workspace the node
-   reads 模型不可用 and this one click fixes it. Tell me the exact id in the
-   dropdown and I will bake it in so even this click disappears.
+4. **Model file only:** the 大语言模型 node is already set to `openai` /
+   `gpt-5.6-sol` — the id your dropdown shows (confirmed 2026-11-08) — with
+   temperature 0 and max tokens 240. If that node reads 模型不可用 instead, your
+   workspace names the provider differently: one click on **模型** →
+   `gpt-5.6-sol` rewrites both the provider and the name in the app and nothing
+   else changes. Tell me the provider label above the model if that happens.
 5. **发布 → 发布更新**, then **概览 / Web 应用** to set the icon, name and
    suggested questions — the file already carries the opening line and five
    starter questions.
@@ -154,10 +155,10 @@ Find out now, not after wiring six nodes.
 | | how it is checked | status |
 |---|---|---|
 | the engine is current, sandbox-safe, byte-identical to the browser | `node tests/check_bundle.js` (116 checks) | **green** |
-| the pasted file survives strict mode, no `console`, junk inputs, the 5-level / 400k output limits, and repeat calls | `node tests/check_sandbox.js` (32 checks, cold answer ~13 ms) | **green** |
-| Dify Cloud accepts an 82 KB Code node at all | a human clicking paste | **unknown** |
-| Dify's own JS runtime matches Node's for this code | the sandbox above is a proxy, not Dify | **unknown** |
-| the model id `chatgpt5.6sol` is in *your* workspace | the model dropdown | **unknown** |
+| the pasted file survives strict mode, no `console`, junk inputs, the 5-level / 400k output limits, and repeat calls | `node tests/check_sandbox.js` (42 checks, cold answer ~13 ms) | **green** |
+| Dify Cloud accepts a 106 KB DSL / 82 KB Code node at all | imported 2026-11-08: 开始 成功, 引擎 ran in 230 ms | **yes** |
+| Dify's JS runtime matches Node's for this code | the same run: the code executed, and only the output check failed | **yes** |
+| the model id is in *your* workspace | 大语言模型 模型 dropdown, 2026-11-08 | **`gpt-5.6-sol`** |
 
 Everything in the first two rows runs on this machine, in a `vm` context with
 nothing in it, which is the closest thing to a Code node that can be tested
@@ -306,7 +307,7 @@ Start ─► Code「engine」 ─► If「rules answered?」 ─► Answer「rou
 | Code「engine」 | Code（代码）, JavaScript | input `query` = `{{#sys.query#}}`; outputs **`text`** (String) + **`kind`** (String) + **`ok`** (Boolean), all three and nothing else; body = `dist/dify-code-node.js` |
 | If「rules answered?」 | If/Else（If-Else） | `{{#code.kind#}}` **is not** `clarify` → TRUE, or `{{#code.ok#}}` **is** `true` if you prefer the boolean; note the picker gives you the real node id, not the word `code` |
 | Answer「route」 | Answer（直接回复） | `{{#code.text#}}` |
-| LLM「front desk」 | LLM（大语言模型） | model **chatgpt5.6sol** (whatever your dropdown offers), temperature **0**, max tokens **240**, no thinking mode, 记忆 off |
+| LLM「front desk」 | LLM（大语言模型） | model **gpt-5.6-sol** (`openai`), exactly as the DSL ships it, temperature **0**, max tokens **240**, no thinking mode, 记忆 off |
 | Answer「reply」 | Answer（直接回复） | `{{#llm.text#}}` |
 
 Two rules that make this an honest demo:
@@ -325,11 +326,13 @@ because it fails loudly rather than silently in the wrong branch.
 
 ### Model
 
-Your workspace model is **`chatgpt5.6sol`**. The imported DSL ships a guess
-(`provider: openai`, `name: gpt-5.6-sol`); if your dropdown shows a different
-id the node reads 模型不可用, and one click fixes it: open the 大语言模型 node →
-**模型** → `chatgpt5.6sol`. The prompt, the temperature and the output wiring
-survive the change — the model is the only thing that is swapped.
+Your workspace model is **`gpt-5.6-sol`** (confirmed 2026-11-08), and the
+imported DSL already says `provider: openai`, `name: gpt-5.6-sol` — so the
+6-node file arrives with the model bound and nothing to click. If the node
+reads 模型不可用, your workspace labels the provider something other than
+`openai`; one click on **模型** → `gpt-5.6-sol` fixes it and leaves the prompt,
+the temperature and the wiring untouched. The provider label is the only thing
+I could not see from here.
 
 Settings that matter, whichever model it is:
 

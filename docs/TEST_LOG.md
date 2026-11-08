@@ -422,9 +422,20 @@ on `{{#code.kind#}} is not 'clarify'`. Both are the same decision (the engine
 sets `kind: 'clarify'` exactly when it could not route). The files use the
 string because a boolean has to survive YAML plus the condition engine's
 coercion, and a string comparison has none. The Code node declares `text`
-(string), `kind` (string) and `ok` (boolean) as outputs; the test asserts all
-three are present on every branch, because Dify fails a Code node whose
-declared output cannot be extracted.
+(string), `kind` (string) and `ok` (boolean) as outputs; `main()` returns those
+three and nothing else, and the test compares the two key sets on every branch,
+because Dify fails a Code node whose returned keys and declared outputs differ
+in number (§ Bugs found).
+
+### The model id
+
+The 大语言模型 dropdown reads **`gpt-5.6-sol`** (confirmed 2026-11-08), which is
+what `tools/make_dsl.js` already bakes in — `provider: openai`,
+`name: gpt-5.6-sol`, temperature 0, max tokens 240, `mode: chat`. The provider
+is the one half still inferred from the model name: Dify stores provider and
+model separately, and the dropdown only shows the model, so a workspace that
+registers OpenAI models under another provider name would need the one click on
+**模型** to rewrite it. Nothing else in the file refers to the model.
 
 Current, end to end: `check_bundle.js` 116/0, `check_sandbox.js` 42/0,
 `check_dsl.js` 204/0, smoke 30/0, fonts 921/0, layout 2092/0 + 1762/0.

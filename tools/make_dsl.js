@@ -48,9 +48,10 @@ const OUT_MODEL = path.join(root, 'dist/hkust-guide-chatgpt.dsl.yml');
 
 const VERSION = '0.2.0';
 
-/* The model baked into the second file. If the dropdown in your workspace
-   shows something else, change it there (one click) - or tell me the id and
-   rebuild. Nothing else in the app depends on it. */
+/* The model baked into the second file: the id the workspace's 模型 dropdown
+   shows (confirmed 2026-11-08). The provider is the only half still guessed
+   - if the LLM node reads 模型不可用, the click that fixes it also tells us
+   what to put here. Nothing else in the app depends on either value. */
 const MODEL_PROVIDER = 'openai';
 const MODEL_NAME = 'gpt-5.6-sol';
 
