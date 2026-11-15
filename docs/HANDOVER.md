@@ -3,7 +3,14 @@
 For whoever inherits this bot next year. 195 words, three parts. Every claim can
 be checked in this repository; the table at the end says where.
 
-Print copy: `docs/Handover-audit.pdf` (one page, same text).
+Print copy: `docs/Handover-audit.pdf` (one page, same text). Source for that page:
+`docs/handover-print.html`, regenerated with
+
+```
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
+  --disable-gpu --no-pdf-header-footer \
+  --print-to-pdf=docs/Handover-audit.pdf docs/handover-print.html
+```
 
 ## The note
 

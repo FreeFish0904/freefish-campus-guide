@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Handover audit</title>
+<style>
+  @page { size: A4; margin: 26mm 24mm 24mm 24mm; }
+  html { -webkit-print-color-adjust: exact; }
+  body {
+    font-family: "Charter", "Iowan Old Style", "Palatino", Georgia, serif;
+    font-size: 11.5pt;
+    line-height: 1.62;
+    color: #1b1b1b;
+    margin: 0;
+  }
+  .kicker {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 8.5pt;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: #8a8a8a;
+    margin: 0 0 6mm 0;
+  }
+  h1 {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 21pt;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    margin: 0 0 3mm 0;
+    color: #111;
+  }
+  .meta {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 9.5pt;
+    color: #5f5f5f;
+    margin: 0 0 11mm 0;
+    padding-bottom: 4mm;
+    border-bottom: .4pt solid #d8d8d8;
+  }
+  p { margin: 0 0 6.5mm 0; text-align: left; hyphens: none; }
+  b.lead { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 10.5pt; letter-spacing: .01em; }
+  code { font-family: "SF Mono", Menlo, monospace; font-size: 10pt; }
+  .rule { margin-top: 10mm; padding-top: 4mm; border-top: .4pt solid #d8d8d8;
+          font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+          font-size: 8.5pt; color: #7a7a7a; }
+</style>
+</head>
+<body>
+
+<p class="kicker">Group 16 / AISC1000A (LA12)</p>
+<h1>Handover audit</h1>
+<p class="meta">For whoever inherits the guide next year / 15 November 2026 / freefish-campus-guide</p>
+
+<p><b class="lead">Two limits.</b> Scope: 240 nodes, names matched by a word index
+plus a Levenshtein pass on 5+ letter words within two edits. A room absent from
+the data is never found, only its nearest neighbour: "restroom" resolved to
+"restroomgf". No retriever, only data to edit. Contract: the Code node must
+return exactly three keys (<code>text</code>, <code>kind</code>,
+<code>ok</code>); Dify compares the count, not the names: our first import died
+on a four-key answer. We learned that the hard way.</p>
+
+<p><b class="lead">The notch.</b> Booking: the Code node gains a write to the
+booking API. New failures: a 0.7-confidence match books the wrong room; no state
+between turns, so a retyped request books twice; the model branch, blind to the
+graph and restrained only by a prompt, can request a room not in the data. Same
+input, different outcome.</p>
+
+<p><b class="lead">The condition.</b> The write files a request, not a booking:
+room ids checked against the data, one idempotency key per user-slot, Estates
+Office clearing the queue before confirmation. It sits at the credential, above
+us: the workflow is a DSL file anyone can re-import, so an in-graph guard is one
+edit away. "Be careful" fails: a wrong booking answers "confirmed".</p>
+
+<p class="rule">Evidence for each claim, with file and line, lives in
+docs/HANDOVER.md in the repository.</p>
+
+</body>
+</html>
