@@ -99,6 +99,10 @@ With `&data=demo`, the originals still work (`Library main entrance → LT-1`,
 
 More detail in [`docs/SAMPLE_QUERIES.md`](docs/SAMPLE_QUERIES.md).
 
+Whoever inherits this next year gets an audit first:
+[`docs/HANDOVER.md`](docs/HANDOVER.md) — two limits, the next notch of
+autonomy, and the one safeguard it would need.
+
 ## How it is put together
 
 ```
