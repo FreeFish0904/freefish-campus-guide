@@ -15,7 +15,7 @@ def flush():
     buf = []
 
 def inline(s):
-    s = s.replace('**', '').replace('`', '')
+    s = s.replace('**', '').replace('`', '').replace('*', '')
     s = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'\1 (\2)', s)
     return s
 
