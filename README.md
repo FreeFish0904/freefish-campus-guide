@@ -104,6 +104,13 @@ Whoever inherits this next year gets an audit first:
 [PDF](docs/Handover-audit.pdf)): two limits, the next notch of autonomy, and the
 one safeguard it would need.
 
+The team submission (the five parts the brief asks for) is one PDF:
+[`docs/Team-submission.pdf`](docs/Team-submission.pdf), typeset from
+[`docs/TEAM_SUBMISSION.md`](docs/TEAM_SUBMISSION.md). The same text for pasting
+into a form is [`docs/TEAM_SUBMISSION.txt`](docs/TEAM_SUBMISSION.txt), and the
+figures are in [`docs/screenshots/`](docs/screenshots), with the three console
+captures that still need a `cloud.dify.ai` login listed in its README.
+
 ## How it is put together
 
 ```
@@ -127,6 +134,8 @@ src/tasks.js            the checklist drawer: ticks, progress, Go
 tools/bundle_engine.js  builds dist/: the browser scripts + engine_api.js
 tools/engine_api.js     Engine.parse / route / nearest / answer, the Dify surface
 tools/make_dsl.js       builds dist/*.dsl.yml: the one-click Dify import files
+tools/md2html.js        Markdown to the print HTML that is printed to a PDF
+tools/md2txt.py         Markdown to plain text, for pasting into a form
 dist/                   generated: dify-engine.js, .min.js, dify-code-node.js, *.dsl.yml
 tests/                  graph + data checkers, 49-case suite, bundle + browser checks
 docs/                   test log, sample queries, deploy + Dify guides, screenshots
