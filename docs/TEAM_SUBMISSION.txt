@@ -145,10 +145,10 @@ figure | file | what to capture
   3.1 What ran
 
 command | what it proves | latest
-node tests/run_tests.js | 49 cases over parsing, routing, nearest, translation and data, against the same scripts the browser loads | 49 cases, 641 assertions, 0 failures, 29 ms; output in docs/TEST_RESULTS.md
+node tests/run_tests.js | 49 cases over parsing, routing, nearest, translation and data, against the same scripts the browser loads | 49 cases, 641 assertions, 0 failures; output in docs/TEST_RESULTS.md
 node tests/check_graph.js | both campuses are connected graphs, every place reachable without stairs, no orphan nodes, every indoor edge inside its footprint, every declared quirk still true | HKUST 240 nodes / 291 edges / 64 places, 240 of 240 step-free; demo 214 / 300 / 57; data OK
 node tests/check_bundle.js | the shipped bundle is current, sandbox-safe, and returns byte-identical text to the browser, 12 questions in three languages | 116 checks, 0 failed
-node tests/check_sandbox.js | the pasted node under a hostile box: strict mode, no console, junk input, the 5-level and 400k limits, repeat calls | 42 checks, 0 failed, cold answer 18 ms
+node tests/check_sandbox.js | the pasted node under a hostile box: strict mode, no console, junk input, the 5-level and 400k limits, repeat calls | 42 checks, 0 failed, a cold answer in well under 100 ms
 node tests/check_dsl.js | both DSL files parse with PyYAML, the embedded code equals the file on disk byte for byte, every {{#node.field#}} resolves, and the parsed code executes | 204 checks, 0 failed
 tests/smoke.html | the interface in a real browser: five cards, three languages, a step click, a floor tab, the player, the step-free switch, a question with no origin, gibberish, then the checklist | 30 checks, 0 script errors
 tests/layout_check.html | every floor, every language, with and without a route, at three pane widths; a label may not touch another label, a lift box, the route line, the canvas edge or its own walls | demo 132 renders / 2,092 texts, HKUST 102 / 1,762, 0 problems
