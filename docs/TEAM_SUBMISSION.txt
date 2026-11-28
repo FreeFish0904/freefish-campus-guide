@@ -54,10 +54,10 @@ off, context off, vision off, no knowledge base attached and no tool the model c
 level it is an advanced chat: no conversation variables, retriever resources disabled, file
 upload off, speech in and out off, sensitive word avoidance off.
 
-There is a second file, dist/hkust-guide.dsl.yml, which is the same flow with the LLM node
-and the fallback answer deleted. Three nodes, and every route still answers. We kept it
-because the claim that the model is optional is easy to write and hard to believe without
-something that runs.
+There is a second file, dist/hkust-guide.dsl.yml, which is the same flow with the LLM node,
+the fallback answer and the if/else deleted. Three nodes, and every route still answers. We
+kept it because the claim that the model is optional is easy to write and hard to believe
+without something that runs.
 
 [Figure 1]
 
@@ -93,7 +93,7 @@ LG1 canteen, but it could not promise that the path implied by that paragraph ha
 in it, and for the reader who asked for step-free that promise is the answer.
 
 source | what it gave us
-data/ust-newcomer.txt | the newcomer guide this prototype is built around: LG1 canteen, LG5 McDonald's, LG7 canteen, the G/F 24-hour study area, the library's top-floor sea-view seats, the LSK canteen and study room, the CYT Bloomberg terminals, the E2 computer room, the pool, ParknShop, the G/F bookstore and the SU store
+data/ust-newcomer.txt | the newcomer guide this prototype is built around: LG1 canteen, LG5 McDonald's, LG7 canteen, the G/F 24-hour study area, the library's top-floor sea-view seats, the LSK canteen and study room, the CYT Bloomberg terminals, the E2 computer room, the pool, ParknShop and the G/F bookstore
 <https://www.hkust.edu.hk/visit> | minibus 11 and 11M, bus 91, 91M, 792M and 104, the southern entrance as the drop-off
 <https://library.hkust.edu.hk> | Learning Commons, group study rooms, nap pods, 3D printing, the print and copy station
 
@@ -105,24 +105,25 @@ it gives.
 
 Building it took four passes. Places became nodes with a building, a floor, a position, a
 category and a name in three languages plus aliases. Connections became typed edges,
-corridor, stairs, escalator, lift, skybridge or covered walkway, each inside its building
+corridor, stairs, lift, covered walkway and open-air link, each drawn inside its building
 footprint, with lift cores joining every pair of floors they actually serve. Names went
 through alias tables in EN, 中文 and 粵語 and a traditional to simplified fold applied to both
 the input and the keywords, plus patterns for room codes and "building plus floor". And
 doubt got written down rather than smoothed out, which is the fourth pass and the least
-comfortable one: 37 of the 64 places and 10 of the 19 lift cores carry verified: false, the
-plan prints 未核实 on them, and the header counts 47.
+comfortable one: 37 of the 64 places and 10 of the 19 cores carry verified: false (those ten
+cores are every lift in the slice), the header counts 47, and the footer says what 未核实
+means.
 
 Answering a question is not cosine similarity either. A word index matches names and
-aliases, words of five letters or more get a Levenshtein pass within two edits, and a fuzzy
-hit counts at 0.7 confidence, so "libary to lg 1 canteen" comes back as a route rather than
-a question. Then Dijkstra runs, and the steps are rendered in the language the question was
-asked in.
+aliases, then a Levenshtein pass looks at words of five letters or more, one edit allowed at
+five letters and two from six up. A hit is kept at 0.7 confidence, so "libary to lg 1
+canteen" comes back as a route rather than a question. Then Dijkstra runs, and the steps are
+rendered in the language the question was asked in.
 
-The one place a corpus would have helped is opening hours, and we answered it the cheap way:
-a short list of campus facts pasted into the LLM prompt, with an instruction to say it does
-not know beyond them. Hours change every term, so a corpus would need maintaining more often
-than the graph does, and the model would still be the thing reading it.
+The one place a corpus would have helped is opening hours, and we left them out rather than
+guess. The last rule in the prompt is that the model may answer a non-routing question only
+if the engine's reply already says it, and otherwise says it does not know. Hours change
+every term, so a corpus would need maintaining more often than the graph does.
 
   2.4 The browser build
 
@@ -162,11 +163,12 @@ python3 tests/browser_check.py | the interface in headless Chrome: 30 UI checks,
 
 The argument for writing all of that is the bug list in docs/TEST_LOG.md, which runs to nine
 entries. Three of them would have shipped. Lift waiting time was being charged per floor, so
-a route that went up four floors reported four times the wait a person standing there
-actually has. The step-free filter only knew traditional characters, so 唔想行楼梯 typed in
-simplified was read as an ordinary request and came back with a flight in it. The map labels
-piled up on each other at LG1 until the text was unreadable. Only the third was visible in a
-screenshot, and only after we looked.
+a route that climbed three floors reported 66 s instead of 30 s. The step-free filter only
+knew traditional characters, so 唔想行楼梯 typed in simplified was read as an ordinary request
+and came back with a flight in it. The map labels piled up on each other until the text was
+unreadable, because every label had been measured while its group was still detached from
+the document. The first two would have surfaced as a wrong answer; the third only surfaced
+in a picture.
 
   3.2 Hallucination, citation and errors
 
@@ -174,14 +176,14 @@ The obvious worry with a language model in a wayfinding app is invented detail, 
 worth being exact about where each number comes from. Times, distances, floors, lift numbers
 and the order of the steps exist only in the router's output, and 641 assertions compare
 them against exact strings. On the route branch the model is not called at all. On the other
-branch it receives the clarification text and the fixed list of campus facts in its prompt,
-with an instruction, first in the prompt, never to state a time, a distance, a floor, a lift
-number or a sequence of steps. Ask it "how long does it take" and it asks for both places,
-because there is nothing to compute from.
+branch it receives the user's question and the text the engine wrote, and its first rule
+forbids inventing a route, a distance, a floor or a walking time. Ask it "how long does it
+take" and no route can be built from it, so the engine returns a clarification and the model
+may only rephrase that.
 
 Citation is the weaker of the three and we would rather say so. Every fact traces to one of
-three sources, which the app header and footer name, and anything we have not walked is
-printed as 未核实 instead of stated flatly. The answer itself carries no passage reference,
+three sources, all three listed in meta.sources, and anything we have not walked is counted
+in the header rather than stated flatly. The answer itself carries no passage reference,
 because nothing is retrieved. Provenance here is enforced when the data is written, not when
 the answer is generated. For a graph that is a defensible choice. It is not the same thing
 as citing a document, and a reader looking for footnotes will not find them.
@@ -210,14 +212,14 @@ A route never contains a stair the user did not allow | pass, enforced by the ed
 Step-free is on by default, and asking for a lift route never removes a lift because the walk looks long | pass
 An unknown word, a missing origin or gibberish produces a question, not a guessed route | pass, four cases in the suite
 An unreachable pair says so and admits uncertainty | pass
-The data names its three sources, and anything we have not walked is marked | pass: meta.sources, and 47 labels saying 未核实
+The data names its three sources, and anything we have not walked is marked | pass: meta.sources, and a header badge counting 47 to verify
 The same question twice gives the same text | pass, on each of the six suites in 3.1
 One hand-written data file rebuilds every artefact, hash printed | pass, a2762b3892aa
 
   3.4 What is still unproven
 
 Walking the campus. Nothing here replaces a person standing in a corridor checking that the
-edge exists, and 47 unverified places is our own count of that gap. A timed study with
+edge exists, and 47 unverified items is our own count of that gap. A timed study with
 someone who does not know the campus, since no usability session has run. The cloud model's
 behaviour under load, because we have tested it for a day rather than a semester. And the
 console captures in 2.1.
@@ -240,7 +242,7 @@ can be held to. The engine is held to the graph: 240 nodes, 291 edges, 641 asser
 recomputing the same times from the same data. The model is held to a short list of
 constraints we can read out loud, no route, no numbers, three sentences, temperature 0, no
 memory, nothing it can call. The team is held to the walk-through, which has not happened
-yet, which is why the map still says 未核实 in 47 places.
+yet, which is why the header still counts 47 items to verify.
 
 Three things we did not hand over. The data, because whether a corridor joins two buildings
 on LG1 is a claim about concrete, and only someone who has walked it can sign it off. The
