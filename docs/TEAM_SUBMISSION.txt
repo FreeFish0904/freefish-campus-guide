@@ -11,23 +11,21 @@ that produces it is not far away.
 HKUST is hard to walk around, and the hard part is rarely which building. It is the last
 twenty metres: the Academic Building runs from LG7 to 4F, the lifts do not all serve the
 same floors, the library has no door at ground level, and the walkway between them exists
-only on LG1. The newcomer guide explains all of it, and so do the signs, but the signs are
-on the floor you are already standing on.
+only on LG1. The signs are on the floor you are already standing on.
 
-The app is for a first-year or exchange student in week one and for open-day visitors:
-someone with a phone who cannot always name the building they are standing in. It is also
-for a student who cannot use stairs, for whom a route with a flight in it is the wrong
-route, not a slower one.
+The app is for a first-year or exchange student in week one, for open-day visitors, and for
+a student who cannot use stairs, for whom a route with a flight in it is the wrong route,
+not a slower one.
 
 One sentence in English, 中文 or 粵語, typos included, comes back as a route with a time, a
 distance, the floors and the lifts. That works when every number can be recomputed from the
-published map, step-free never returns a stair, the browser and the Dify chat agree word for
-word, and routes still answer with the model deleted.
+published map, step-free never returns a stair, the browser and the chat return the same
+route text, and routes still answer with the model deleted.
 
 That last test answers CILO 3 and 4. The engine owns the numbers, because a number can be
 checked against a graph. The model owns one sentence, all that is left when the rules fail.
-The team owns the data, the accessibility default and the release, which are judgements no
-test can invent.
+The team owns the data, the accessibility default and the release, judgements no test can
+invent.
 
 2. Technical documentation
 
@@ -207,12 +205,12 @@ that taught us to write 2.2.
   3.3 Acceptance on the deployed app
 
 check | status
-The Dify app answers, and the answer matches the local build word for word | pass on the first two suggested questions
+The Dify app answers, and the answer is the route text the local build produces | pass on the first two suggested questions
 A route never contains a stair the user did not allow | pass, enforced by the edge filter
 Step-free is on by default, and asking for a lift route never removes a lift because the walk looks long | pass
 An unknown word, a missing origin or gibberish produces a question, not a guessed route | pass, four cases in the suite
 An unreachable pair says so and admits uncertainty | pass
-The data names its three sources, and anything we have not walked is marked | pass: meta.sources, and a header badge counting 47 to verify
+The data names its three sources, and anything we have not walked is counted, not glossed over | pass: meta.sources, and a header badge counting 47 to verify
 The same question twice gives the same text | pass, on each of the six suites in 3.1
 One hand-written data file rebuilds every artefact, hash printed | pass, a2762b3892aa
 
@@ -230,27 +228,24 @@ the wrong end of the Academic Building, but it is a bias and it should be visibl
 
 4. How we split the work
 
-We started from a small observation about what goes wrong with apps like this. Someone
-standing in a lift lobby does not need a chatbot that sounds confident; they need a floor
-and a lift number they can act on, and a wrong one costs them ten minutes and some trust.
-The easy build is to paste the newcomer guide into a prompt and let a model answer. That
-demos well and fails the first time it sends someone to LG1 in Lift 2, a floor that lift
-does not serve, in the same confident voice it uses when it is right.
+We started from a small observation. Someone standing in a lift lobby does not need a
+chatbot that sounds confident; they need a floor and a lift number they can act on, and a
+wrong one costs them ten minutes and some trust. The easy build is to paste the newcomer
+guide into a prompt and let a model answer. That demos well and fails the first time it
+sends someone to LG1 in Lift 2, a floor that lift does not serve, in the same confident
+voice.
 
-Once we had said that out loud, the split followed. Each part of the system does the work it
-can be held to. The engine is held to the graph: 240 nodes, 291 edges, 641 assertions
-recomputing the same times from the same data. The model is held to a short list of
-constraints we can read out loud, no route, no numbers, three sentences, temperature 0, no
-memory, nothing it can call. The team is held to the walk-through, which has not happened
-yet, which is why the header still counts 47 items to verify.
+Once we had said that out loud, the split followed: each part does the work it can be held
+to. The engine is held to the graph: 240 nodes, 291 edges, 641 assertions recomputing the
+same times from the same data. The model is held to a short list of constraints we can read
+out loud: no route, no numbers, three sentences, temperature 0. The team is held to the
+walk-through, which has not happened, which is why the header counts 47 items to verify.
 
 Three things we did not hand over. The data, because whether a corridor joins two buildings
 on LG1 is a claim about concrete, and only someone who has walked it can sign it off. The
 accessibility default, because whether step-free is on by default decides who the product is
-for, and a route with a flight in it is useless to the person who asked. Release, because
-saying "it works" needs a suite we can re-run and a person who reads the failure list; the
-workflow is a DSL file anyone can re-import, so the guard against a careless edit is the
-account, not the graph.
+for. Release, because "it works" needs a suite we can re-run and someone who reads the
+failure list; a DSL file anyone can re-import is guarded by the account, not the graph.
 
 Everything else went through two questions. Can a machine decide whether the output is right
 without a person reading it? Can the user recover if it is wrong? When both answers were
@@ -258,19 +253,19 @@ yes, the rules took the job. Reading "libary entraince" is checkable and a clari
 costs one turn, so parsing is deterministic and shows its reading. When either answer was
 no, a person kept it. A wrong floor is not recoverable at eleven at night, so the numbers
 stay in code. Whether LG5 McDonald's is open in exam week cannot be checked against our data
-and cannot be recovered if it is invented, so the model answers from the fixed list and is
-allowed to say it does not know.
+and cannot be recovered if it is invented, so the model may only rephrase what the engine
+already said, and may say it does not know.
 
-Five things we would defend in a review. Numbers are computed, never generated. The model's
+Four things we would defend in a review. Numbers are computed, never generated. The model's
 blast radius is one sentence, with no tools, no retrieval and no state. Every delegation
 carries a check that fails loudly, whether that is a stale bundle, a wrong key count or a
 changed route. Uncertainty is printed instead of smoothed, and a name is on the release.
 
 None of this is free. A prompt would answer sentences our rules refuse, our route text is
 template prose, and with memory off a follow-up question has to name both places again. We
-took those costs because what this project has is that a stranger can trust the numbers, and
-a system that guesses in the tone it uses when it is right will lose that the first time it
-is wrong.
+took those costs because the one thing this project has is a stranger who can trust the
+numbers, and a system that guesses in its confident voice loses that the first time it is
+wrong.
 
 5. Demo
 
